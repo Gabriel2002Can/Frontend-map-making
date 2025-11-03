@@ -1,50 +1,157 @@
 <template>
   <div class="grid-map-container">
     <div class="grid-map-card">
-      <!-- 标题和尺寸信息 / Title and dimension info -->
-      <h1 class="grid-map-title">Grid Map Viewer</h1>
-      <p class="grid-map-dimensions">Dimensions: {{ mapData.gridDimensions }}</p>
+      <!-- 标题 / Title -->
+      <h1 class="grid-map-title">Grid Map Viewer (网格地图查看器)</h1>
 
-      <!-- 加载状态 / Loading state -->
-      <div v-if="loading" class="loading-state">
-        Loading map data...
-      </div>
+      <!-- 输入界面 / Input Interface -->
+      <div v-if="!gridGenerated" class="input-section">
+        <div class="input-description">
+          <p>Enter the dimensions for your grid map</p>
+          <p class="subtitle">输入你的网格地图尺寸</p>
+        </div>
 
-      <!-- 错误状态 / Error state -->
-      <div v-else-if="error" class="error-state">
-        <h2>Error Loading Map</h2>
-        <p>{{ error }}</p>
-      </div>
+        <div class="input-group">
+          <div class="input-field">
+            <label for="cols-input">Columns (宽度 / X Dimension)</label>
+            <input
+              id="cols-input"
+              v-model.number="inputCols"
+              type="number"
+              min="1"
+              max="20"
+              placeholder="e.g., 5"
+              class="dimension-input"
+            />
+          </div>
 
-      <!-- 地图网格 / Map grid -->
-      <div v-else class="grid-wrapper">
-        <div
-          class="grid-container"
-          :style="{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }"
-        >
-          <!-- 遍历所有行和列，生成格子 / Iterate through all rows and columns -->
-          <div
-            v-for="(cell, index) in allCells"
-            :key="index"
-            :class="['grid-cell', cell.filled ? 'grid-cell-filled' : 'grid-cell-empty']"
-          >
-            {{ cell.x }},{{ cell.y }}
+          <div class="input-separator">×</div>
+
+          <div class="input-field">
+            <label for="rows-input">Rows (高度 / Y Dimension)</label>
+            <input
+              id="rows-input"
+              v-model.number="inputRows"
+              type="number"
+              min="1"
+              max="20"
+              placeholder="e.g., 5"
+              class="dimension-input"
+            />
           </div>
         </div>
 
-        <!-- 已填充格子列表 / List of filled cells -->
-        <div class="filled-cells-container">
-          <h2 class="filled-cells-title">
-            Filled Cells ({{ filledCells.length }})
-          </h2>
-          <div class="filled-cells-list">
-            <span
-              v-for="(cell, idx) in filledCells"
-              :key="idx"
-              class="filled-cell-tag"
+        <button
+          @click="generateGrid"
+          class="generate-button"
+          :disabled="!isValidInput"
+        >
+          Generate Grid (生成网格)
+        </button>
+
+        <p v-if="!isValidInput" class="validation-message">
+          ⚠️ Please enter valid dimensions (1-20 for both columns and rows)
+        </p>
+      </div>
+
+      <!-- 地图显示界面 / Map Display Interface -->
+      <div v-else>
+        <!-- 头部操作区 / Header Actions -->
+        <div class="header-actions">
+          <div class="header-left">
+            <p class="grid-map-dimensions">
+              Dimensions (尺寸): {{ mapData.gridDimensions }}
+            </p>
+            <p class="grid-info">
+              Total Cells (总数): {{ allCells.length }} | Filled Cells (已填充): {{ filledCells.length }}
+            </p>
+          </div>
+
+          <div class="control-buttons">
+            <!-- 缩放控制 / Zoom Controls -->
+            <div class="zoom-controls">
+              <button @click="zoomOut" class="zoom-button" :disabled="zoomLevel <= 0.5">
+                <span>−</span>
+              </button>
+              <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
+              <button @click="zoomIn" class="zoom-button" :disabled="zoomLevel >= 2">
+                <span>+</span>
+              </button>
+            </div>
+
+            <!-- 操作按钮 / Action Buttons -->
+            <button @click="fillAll" class="action-button fill-all">
+              Fill All (全部填充)
+            </button>
+            <button @click="clearAll" class="action-button clear-all">
+              Clear All (全部清空)
+            </button>
+            <button @click="resetGrid" class="reset-button">
+              Change Size (改变尺寸)
+            </button>
+          </div>
+        </div>
+
+        <!-- 加载状态 / Loading state -->
+        <div v-if="loading" class="loading-state">
+          ⏳ Loading map data... (加载中...)
+        </div>
+
+        <!-- 错误状态 / Error state -->
+        <div v-else-if="error" class="error-state">
+          <h2>Error Loading Map (错误)</h2>
+          <p>{{ error }}</p>
+        </div>
+
+        <!-- 地图网格 / Map grid -->
+        <div v-else class="grid-wrapper">
+          <div
+            class="grid-container"
+            :style="{
+              gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+              '--cell-size': cellSize + 'rem'
+            }"
+          >
+            <!-- 遍历所有行和列，生成格子 / Iterate through all rows and columns to generate cells -->
+            <div
+              v-for="(cell, index) in allCells"
+              :key="index"
+              :class="['grid-cell', cell.filled ? 'grid-cell-filled' : 'grid-cell-empty']"
+              @click="toggleCell(cell)"
+              :title="`Cell (${cell.x}, ${cell.y})`"
             >
-              ({{ cell.x }}, {{ cell.y }})
-            </span>
+              {{ cell.x }},{{ cell.y }}
+            </div>
+          </div>
+
+          <!-- 右侧面板 / Right Panel -->
+          <div class="grid-sidebar">
+            <!-- 已填充格子列表 / List of filled cells -->
+            <div class="filled-cells-container">
+              <h2 class="filled-cells-title">
+                Filled Cells (已填充格子) - {{ filledCells.length }}/{{ allCells.length }}
+              </h2>
+              <div class="filled-cells-list">
+                <span v-if="filledCells.length === 0" class="empty-message">
+                  Click on cells to fill them (点击格子来填充)
+                </span>
+                <span
+                  v-for="(cell, idx) in filledCells"
+                  :key="idx"
+                  class="filled-cell-tag"
+                >
+                  ({{ cell.x }}, {{ cell.y }})
+                </span>
+              </div>
+            </div>
+
+            <!-- JSON预览 / JSON Preview -->
+            <div class="json-preview">
+              <h3 class="json-title">Current State (JSON)</h3>
+              <div class="json-content">
+                <pre>{{ JSON.stringify(getCurrentState(), null, 2) }}</pre>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -55,41 +162,36 @@
 <script setup>
 import { ref, computed } from 'vue';
 
-// ============================================
-// 方式1: 使用模拟数据 (当前激活) / Method 1: Use mock data (currently active)
-// ============================================
-const mockMapData = {
-  gridDimensions: "5x5",
-  gridElements: [
-    { x: 1, y: 1, filled: true },
-    { x: 2, y: 1, filled: true },
-    { x: 3, y: 2, filled: true },
-    { x: 1, y: 3, filled: true },
-    { x: 4, y: 3, filled: true },
-    { x: 2, y: 4, filled: true },
-    { x: 5, y: 5, filled: true },
-  ]
-};
+// 输入的尺寸 / Input dimensions
+const inputCols = ref(5);
+const inputRows = ref(5);
+
+// 是否已生成网格 / Whether grid is generated
+const gridGenerated = ref(false);
 
 // 响应式数据 / Reactive data
-const mapData = ref(mockMapData);
+const mapData = ref({
+  gridDimensions: "",
+  gridElements: []
+});
+
 const loading = ref(false);
 const error = ref(null);
+const zoomLevel = ref(1);
 
 // ============================================
 // 方式2: 从API获取数据 (注释掉) / Method 2: Fetch from API (commented out)
-// 使用时需要取消下面的注释，并导入 onMounted:
-// When using, uncomment below and import onMounted:
-// import { ref, computed, onMounted } from 'vue';
+// 使用时需要取消下面的注释，并导入 onMounted
+// When using, uncomment below and import onMounted
 // ============================================
 //
 // onMounted(async () => {
-//   // 设置加载状态 / Set loading state
+//   // 如果需要在加载时从API获取数据 / If need to fetch data from API on load
 //   loading.value = true;
 //
 //   try {
 //     // 从API获取地图数据 / Fetch map data from API
-//     const response = await fetch('https://your-api-endpoint.com/api/maps/1');
+//     const response = await fetch('https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net/api/floor/1');
 //
 //     if (!response.ok) {
 //       throw new Error('Network response was not ok');
@@ -97,14 +199,26 @@ const error = ref(null);
 //
 //     // API应该返回格式: / API should return format:
 //     // {
-//     //   gridDimensions: "5x5",
-//     //   gridElements: [
-//     //     { x: 1, y: 3, filled: true },
+//     //   id: 1,
+//     //   name: "Floor 1",
+//     //   number: 1,
+//     //   dimensionX: 10,
+//     //   dimensionY: 10,
+//     //   mapId: 1,
+//     //   cells: [
+//     //     { x: 1, y: 3, isFilled: true },
 //     //     ...
 //     //   ]
 //     // }
-//     const data = await response.json();
-//     mapData.value = data;
+//     const floor = await response.json();
+//
+//     // 转换API数据为内部格式 / Convert API data to internal format
+//     mapData.value = {
+//       gridDimensions: `${floor.dimensionX}x${floor.dimensionY}`,
+//       gridElements: floor.cells || []
+//     };
+//
+//     gridGenerated.value = true; // 自动显示网格 / Automatically show grid
 //   } catch (err) {
 //     console.error('Error fetching map data:', err);
 //     error.value = err.message;
@@ -113,13 +227,116 @@ const error = ref(null);
 //   }
 // });
 
+// 验证输入 / Validate input
+const isValidInput = computed(() => {
+  return inputCols.value >= 1 && inputCols.value <= 20 &&
+         inputRows.value >= 1 && inputRows.value <= 20;
+});
+
+// 生成网格 / Generate grid
+const generateGrid = () => {
+  if (!isValidInput.value) return;
+
+  // 生成网格 / Generate grid structure
+  mapData.value = {
+    gridDimensions: `${inputCols.value}x${inputRows.value}`,
+    gridElements: []
+  };
+
+  gridGenerated.value = true;
+};
+
+// 重置网格 / Reset grid
+const resetGrid = () => {
+  gridGenerated.value = false;
+  mapData.value = {
+    gridDimensions: "",
+    gridElements: []
+  };
+};
+
+// 切换格子状态 / Toggle cell state
+const toggleCell = (cell) => {
+  const index = mapData.value.gridElements.findIndex(
+    el => el.x === cell.x && el.y === cell.y
+  );
+
+  if (index !== -1) {
+    // 如果已存在，移除 / If exists, remove
+    mapData.value.gridElements.splice(index, 1);
+  } else {
+    // 如果不存在，添加 / If doesn't exist, add
+    mapData.value.gridElements.push({
+      x: cell.x,
+      y: cell.y,
+      filled: true
+    });
+  }
+};
+
+// 填充所有格子 / Fill all cells
+const fillAll = () => {
+  mapData.value.gridElements = [];
+  for (let y = 1; y <= rows.value; y++) {
+    for (let x = 1; x <= cols.value; x++) {
+      mapData.value.gridElements.push({
+        x,
+        y,
+        filled: true
+      });
+    }
+  }
+};
+
+// 清空所有格子 / Clear all cells
+const clearAll = () => {
+  mapData.value.gridElements = [];
+};
+
+// 放大 / Zoom in
+const zoomIn = () => {
+  if (zoomLevel.value < 2) {
+    zoomLevel.value += 0.2;
+  }
+};
+
+// 缩小 / Zoom out
+const zoomOut = () => {
+  if (zoomLevel.value > 0.5) {
+    zoomLevel.value -= 0.2;
+  }
+};
+
+// 计算格子大小 / Calculate cell size based on grid dimensions
+const cellSize = computed(() => {
+  const maxCols = Math.max(cols.value, rows.value);
+
+  // 根据最大维度动态调整格子大小 / Dynamically adjust cell size based on max dimension
+  if (maxCols <= 5) return 4;      // 大格子 / Large cells
+  if (maxCols <= 8) return 3;      // 中等格子 / Medium cells
+  if (maxCols <= 12) return 2.5;   // 较小格子 / Smaller cells
+  if (maxCols <= 16) return 2;     // 小格子 / Small cells
+  return 1.5;                       // 最小格子 / Minimum cells
+});
+
+// 计算字体大小 / Calculate font size based on cell size
+const fontSize = computed(() => {
+  if (cellSize.value >= 4) return '0.875rem';
+  if (cellSize.value >= 3) return '0.75rem';
+  if (cellSize.value >= 2.5) return '0.65rem';
+  if (cellSize.value >= 2) return '0.55rem';
+  return '0.5rem';
+});
+
 // 计算属性: 解析网格尺寸 / Computed: Parse grid dimensions
 const cols = computed(() => {
+  if (!mapData.value.gridDimensions) return 0;
   const [c] = mapData.value.gridDimensions.split('x').map(Number);
   return c;
 });
 
 const rows = computed(() => {
+  if (!mapData.value.gridDimensions) return 0;
   const [, r] = mapData.value.gridDimensions.split('x').map(Number);
   return r;
 });
@@ -150,12 +367,24 @@ const allCells = computed(() => {
 
   return cells;
 });
+
+// 获取当前状态的JSON / Get current state as JSON
+const getCurrentState = () => {
+  return {
+    gridDimensions: mapData.value.gridDimensions,
+    filledCells: filledCells.value,
+    totalCells: allCells.value.length,
+    fillPercentage: allCells.value.length > 0
+      ? Math.round((filledCells.value.length / allCells.value.length) * 100)
+      : 0
+  };
+};
 </script>
 
 <style scoped>
 .grid-map-container {
   min-height: 100vh;
-  background-color: #111827;
+  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -164,25 +393,233 @@ const allCells = computed(() => {
 
 .grid-map-card {
   background-color: #1f2937;
-  border-radius: 0.5rem;
-  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
   padding: 2rem;
-  max-width: 56rem;
+  max-width: 1400px;
   width: 100%;
+  border: 1px solid #374151;
 }
 
 .grid-map-title {
-  font-size: 1.875rem;
+  font-size: 2rem;
   font-weight: bold;
   color: white;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
   text-align: center;
+}
+
+/* 输入界面样式 / Input Interface Styles */
+.input-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.input-description {
+  color: #9ca3af;
+  text-align: center;
+  margin-bottom: 2rem;
+  font-size: 1.125rem;
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.input-group {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.input-field label {
+  color: #d1d5db;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.dimension-input {
+  width: 150px;
+  padding: 0.75rem 1rem;
+  font-size: 1.125rem;
+  color: white;
+  background-color: #374151;
+  border: 2px solid #4b5563;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: all 0.3s;
+  text-align: center;
+}
+
+.dimension-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.dimension-input::placeholder {
+  color: #6b7280;
+}
+
+.input-separator {
+  color: #9ca3af;
+  font-size: 2rem;
+  font-weight: bold;
+  padding-bottom: 0.5rem;
+}
+
+.generate-button {
+  padding: 0.75rem 2rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+  background-color: #3b82f6;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);
+}
+
+.generate-button:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 15px 20px -3px rgba(59, 130, 246, 0.4);
+}
+
+.generate-button:disabled {
+  background-color: #4b5563;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.validation-message {
+  color: #fca5a5;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+}
+
+/* 头部操作区 / Header Actions */
+.header-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .grid-map-dimensions {
   color: #9ca3af;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.grid-info {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.control-buttons {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.zoom-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #374151;
+  padding: 0.5rem;
+  border-radius: 0.375rem;
+}
+
+.zoom-button {
+  padding: 0.4rem 0.75rem;
+  color: white;
+  background-color: #4b5563;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.zoom-button:hover:not(:disabled) {
+  background-color: #3b82f6;
+}
+
+.zoom-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-level {
+  color: #d1d5db;
+  font-weight: 600;
+  min-width: 50px;
   text-align: center;
-  margin-bottom: 1.5rem;
+}
+
+.action-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  color: white;
+}
+
+.action-button.fill-all {
+  background-color: #10b981;
+}
+
+.action-button.fill-all:hover {
+  background-color: #059669;
+}
+
+.action-button.clear-all {
+  background-color: #ef4444;
+}
+
+.action-button.clear-all:hover {
+  background-color: #dc2626;
+}
+
+.reset-button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  background-color: #6b7280;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.reset-button:hover {
+  background-color: #4b5563;
 }
 
 .loading-state,
@@ -190,6 +627,7 @@ const allCells = computed(() => {
   color: white;
   text-align: center;
   padding: 2rem;
+  font-size: 1.1rem;
 }
 
 .error-state {
@@ -204,9 +642,10 @@ const allCells = computed(() => {
 }
 
 .grid-wrapper {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
 }
 
 .grid-container {
@@ -215,19 +654,28 @@ const allCells = computed(() => {
   padding: 1rem;
   background-color: #374151;
   border-radius: 0.5rem;
+  justify-self: center;
+  border: 1px solid #4b5563;
 }
 
 .grid-cell {
-  width: 4rem;
-  height: 4rem;
+  width: var(--cell-size, 4rem);
+  height: var(--cell-size, 4rem);
   border-radius: 0.375rem;
   border: 2px solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.875rem;
+  font-size: v-bind(fontSize);
   font-weight: 600;
   transition: all 0.3s;
+  cursor: pointer;
+  min-width: 1.5rem;
+  min-height: 1.5rem;
+}
+
+.grid-cell:hover {
+  transform: scale(1.08);
 }
 
 .grid-cell-filled {
@@ -237,39 +685,130 @@ const allCells = computed(() => {
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.5);
 }
 
+.grid-cell-filled:hover {
+  box-shadow: 0 15px 20px -3px rgba(59, 130, 246, 0.6);
+}
+
 .grid-cell-empty {
   background-color: #4b5563;
   border-color: #6b7280;
   color: #9ca3af;
 }
 
-.filled-cells-container {
-  margin-top: 2rem;
+.grid-cell-empty:hover {
+  background-color: #5a6575;
+  border-color: #9ca3af;
+}
+
+.grid-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.filled-cells-container,
+.json-preview {
   background-color: #374151;
   border-radius: 0.5rem;
   padding: 1rem;
-  width: 100%;
+  border: 1px solid #4b5563;
 }
 
-.filled-cells-title {
-  font-size: 1.125rem;
+.filled-cells-title,
+.json-title {
+  font-size: 0.95rem;
   font-weight: 600;
-  color: white;
+  color: #60a5fa;
   margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #4b5563;
 }
 
 .filled-cells-list {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.5rem;
+  max-height: 250px;
+  overflow-y: auto;
 }
 
 .filled-cell-tag {
-  padding: 0.25rem 0.75rem;
+  padding: 0.5rem 0.75rem;
   background-color: #3b82f6;
   color: white;
-  border-radius: 9999px;
-  font-size: 0.875rem;
+  border-radius: 0.375rem;
+  font-size: 0.85rem;
   font-weight: 500;
+  border: 1px solid #2563eb;
+}
+
+.empty-message {
+  color: #9ca3af;
+  font-style: italic;
+  padding: 1rem 0;
+  text-align: center;
+}
+
+.json-content {
+  background-color: #111827;
+  padding: 0.75rem;
+  border-radius: 0.375rem;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.json-content pre {
+  color: #10b981;
+  font-family: 'Courier New', monospace;
+  font-size: 0.75rem;
+  margin: 0;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  line-height: 1.4;
+}
+
+@media (max-width: 1024px) {
+  .grid-wrapper {
+    grid-template-columns: 1fr;
+  }
+
+  .grid-sidebar {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .grid-map-container {
+    padding: 1rem;
+  }
+
+  .grid-map-card {
+    padding: 1rem;
+  }
+
+  .grid-map-title {
+    font-size: 1.5rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .control-buttons {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .grid-container {
+    gap: 0.25rem;
+    padding: 0.5rem;
+  }
+
+  .grid-cell {
+    width: 30px;
+    height: 30px;
+    font-size: 0.5rem;
+  }
 }
 </style>
