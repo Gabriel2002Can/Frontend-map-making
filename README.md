@@ -1,44 +1,68 @@
-# map_ex1
+# **Map making Tool --- Frontend**
 
-This template should help get you started developing with Vue 3 in Vite.
+This project is a full-stack web application designed to create, manage, and visualize maps, their layers, and individual cells.
+It includes a backend API for data management and a frontend interface for interacting with maps.
 
-## Recommended IDE Setup
+**Link to the Backend:** https://github.com/Gabriel2002Can/Backend-map-making
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+# **Overview**:
 
-## Recommended Browser Setup
+The application allows users to:
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd) 
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+- Create and list maps
 
-## Customize configuration
+- Add and manage layers within each map
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- Automatically generate cells for each layer upon creation
 
-## Project Setup
+- Visualize maps and layers through an interactive frontend
 
-```sh
-npm install
-```
+- **Future functionality will include the ability to add pins (markers) to the map that display text, images, or links when clicked.**
 
-### Compile and Hot-Reload for Development
+# **Architecture**
 
-```sh
-npm run dev
-```
+The project is divided into two main parts:
 
-### Compile and Minify for Production
+**Backend**
 
-```sh
-npm run build
-```
+- Provides a REST API for managing maps, layers, and cells.
 
-### Lint with [ESLint](https://eslint.org/)
+- Handles automatic cell generation whenever a new layer is created.
 
-```sh
-npm run lint
-```
+- Connects to a database that stores all map, layer, and cell data.
+
+Typical endpoints include:
+
+- GET /maps → Returns all maps
+
+- POST /maps → Creates a new map
+
+- GET /maps/{id}/layers → Returns all layers of a specific map
+
+- POST /layers → Creates a new layer (and its cells)
+
+- GET /layers/{id} → Returns a layer with all its cells
+
+**Frontend**
+
+- Allows users to visualize maps and layers in a user-friendly interface.
+
+- Supports map creation directly from the UI.
+
+Future updates will include:
+
+- Layer editing tools
+
+- Pin placement and customization
+
+- Interactive map navigation
+
+# **Technologies Used**
+
+**Backend: .NET (C#)**
+
+**Frontend: Vue**
+
+**Database: Azure SQL**
+
+**API: RESTful architecture**
