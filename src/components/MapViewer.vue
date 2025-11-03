@@ -7,14 +7,14 @@
       <!-- 欢迎信息 / Welcome Message -->
       <div class="welcome-section">
         <p class="welcome-text">
-          Welcome to the Floor Management System (欢迎来到楼层管理系统)
+          Welcome to the Floor Management System
         </p>
       </div>
 
       <!-- 地图列表 / Maps List -->
       <div class="maps-section">
         <div class="section-header">
-          <h2 class="section-title">Available Maps (可用地图)</h2>
+          <h2 class="section-title">Available Maps</h2>
           <button @click="createNewMap" class="create-map-button">
             + New Map
           </button>
