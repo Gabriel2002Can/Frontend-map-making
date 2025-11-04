@@ -1,23 +1,19 @@
 <template>
   <div class="map-viewer-container">
     <div class="map-viewer-card">
-      <!-- 标题 / Title -->
+      <!-- Title -->
       <h1 class="map-viewer-title">Map Management System</h1>
 
-      <!-- 欢迎信息 / Welcome Message -->
+      <!-- Welcome Message -->
       <div class="welcome-section">
-        <p class="welcome-text">
-          Welcome to the Floor Management System
-        </p>
+        <p class="welcome-text">Welcome to the Floor Management System</p>
       </div>
 
-      <!-- 地图列表 / Maps List -->
+      <!-- Maps List -->
       <div class="maps-section">
         <div class="section-header">
           <h2 class="section-title">Available Maps</h2>
-          <button @click="createNewMap" class="create-map-button">
-            + New Map
-          </button>
+          <button @click="createNewMap" class="create-map-button">+ New Map</button>
         </div>
 
         <div v-if="maps.length === 0" class="empty-state">
@@ -25,16 +21,12 @@
           <p class="empty-help">Create a map first to get started</p>
         </div>
 
-        <!-- 地图卡片 / Map Cards -->
+        <!-- Map Cards -->
         <div v-else class="maps-grid">
-          <div
-            v-for="map in maps"
-            :key="map.id"
-            class="map-card"
-          >
-            <!-- 地图头 / Map Header -->
+          <div v-for="map in maps" :key="map.id" class="map-card">
+            <!-- Map Header -->
             <div class="map-header">
-              <!-- Map Name Edit Mode / 地图名称编辑模式 -->
+              <!-- Map Name Edit Mode -->
               <div v-if="editingMapId === map.id" class="map-name-edit">
                 <input
                   v-model="editingMapName"
@@ -48,7 +40,7 @@
                 <button @click="cancelMapEdit" class="cancel-btn">✕</button>
               </div>
 
-              <!-- Map Name Display Mode / 地图名称显示模式 -->
+              <!-- Map Name Display Mode -->
               <div v-else class="map-name-display">
                 <h3 class="map-name">{{ map.name }}</h3>
                 <div class="map-actions-header">
@@ -72,16 +64,11 @@
               <span class="map-badge">{{ map.numberOfFloors }} Floor(s)</span>
             </div>
 
-            <!-- 楼层列表 / Floors List -->
+            <!-- Floors List -->
             <div class="floors-list">
               <div class="floors-header">
-                <h4 class="floors-title">Floors (楼层):</h4>
-                <button
-                  @click="createFloor(map)"
-                  class="create-floor-btn"
-                >
-                  + Floor
-                </button>
+                <h4 class="floors-title">Floors:</h4>
+                <button @click="createFloor(map)" class="create-floor-btn">+ Floor</button>
               </div>
 
               <div v-if="map.floors.length === 0" class="no-floors">
@@ -89,12 +76,8 @@
               </div>
 
               <div v-else class="floors-items">
-                <div
-                  v-for="floor in map.floors"
-                  :key="floor.id"
-                  class="floor-item"
-                >
-                  <!-- Floor Edit Mode / 楼层编辑模式 -->
+                <div v-for="floor in map.floors" :key="floor.id" class="floor-item">
+                  <!-- Floor Edit Mode -->
                   <div v-if="editingFloorId === floor.id" class="floor-edit">
                     <input
                       v-model="editingFloorData.name"
@@ -112,7 +95,7 @@
                     <button @click="cancelFloorEdit" class="cancel-btn">✕</button>
                   </div>
 
-                  <!-- Floor Display Mode / 楼层显示模式 -->
+                  <!-- Floor Display Mode -->
                   <div v-else class="floor-display">
                     <div class="floor-info">
                       <span class="floor-name">{{ floor.name }} (#{{ floor.number }})</span>
@@ -151,226 +134,220 @@
         </div>
       </div>
 
-      <!-- 模拟数据信息 / Mock Data Info -->
+      <!-- Mock Data Info -->
       <div class="mock-data-info">
-        <p class="info-text">
-          ℹ️ Currently using mock data (currently using JSON simulation)
-        </p>
+        <p class="info-text">ℹ️ Currently using mock data (JSON simulation)</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref } from 'vue'
 
-// 定义发射事件 / Define emitted events
-const emit = defineEmits(['create-floor', 'edit-floor', 'create-map']);
+// Define emitted events
+const emit = defineEmits(['create-floor', 'edit-floor', 'create-map'])
 
-// 响应式数据 / Reactive data
+// Reactive data
 const maps = ref([
   {
     id: 1,
-    name: "Office Building",
+    name: 'Office Building',
     numberOfFloors: 2,
     floors: [
       {
         id: 1,
-        name: "Ground Floor",
+        name: 'Ground Floor',
         number: 0,
         dimensionX: 15,
         dimensionY: 12,
         mapId: 1,
         cells: [
           { id: 1, x: 1, y: 1, isFilled: false, floorId: 1 },
-          { id: 2, x: 2, y: 2, isFilled: true, floorId: 1 }
-        ]
+          { id: 2, x: 2, y: 2, isFilled: true, floorId: 1 },
+        ],
       },
       {
         id: 2,
-        name: "First Floor",
+        name: 'First Floor',
         number: 1,
         dimensionX: 15,
         dimensionY: 12,
         mapId: 1,
-        cells: [
-          { id: 5, x: 1, y: 1, isFilled: true, floorId: 2 }
-        ]
-      }
-    ]
+        cells: [{ id: 5, x: 1, y: 1, isFilled: true, floorId: 2 }],
+      },
+    ],
   },
   {
     id: 2,
-    name: "Hospital Complex",
+    name: 'Hospital Complex',
     numberOfFloors: 1,
     floors: [
       {
         id: 3,
-        name: "Main Floor",
+        name: 'Main Floor',
         number: 0,
         dimensionX: 20,
         dimensionY: 15,
         mapId: 2,
-        cells: []
-      }
-    ]
-  }
-]);
+        cells: [],
+      },
+    ],
+  },
+])
 
-// 编辑状态 / Editing state
-const editingMapId = ref(null);
-const editingMapName = ref('');
-const editingFloorId = ref(null);
+// Editing state
+const editingMapId = ref(null)
+const editingMapName = ref('')
+const editingFloorId = ref(null)
 const editingFloorData = ref({
   name: '',
-  number: 0
-});
+  number: 0,
+})
 
-// 方法 / Methods
+// Methods
 
-// 创建新地图 / Create new map
+// Create new map
 const createNewMap = () => {
   const newMap = {
-    id: Math.max(...maps.value.map(m => m.id || 0)) + 1,
+    id: Math.max(...maps.value.map((m) => m.id || 0)) + 1,
     name: `New Map ${maps.value.length + 1}`,
     numberOfFloors: 0,
-    floors: []
-  };
-  maps.value.push(newMap);
-};
-
-// 开始编辑地图名称 / Start editing map name
-const startEditMap = (map) => {
-  editingMapId.value = map.id;
-  editingMapName.value = map.name;
-};
-
-// 保存地图名称 / Save map name
-const saveMapName = (mapId) => {
-  const map = maps.value.find(m => m.id === mapId);
-  if (map && editingMapName.value.trim()) {
-    map.name = editingMapName.value.trim();
+    floors: [],
   }
-  editingMapId.value = null;
-  editingMapName.value = '';
-};
+  maps.value.push(newMap)
+}
 
-// 取消编辑地图 / Cancel map edit
+// Start editing map name
+const startEditMap = (map) => {
+  editingMapId.value = map.id
+  editingMapName.value = map.name
+}
+
+// Save map name
+const saveMapName = (mapId) => {
+  const map = maps.value.find((m) => m.id === mapId)
+  if (map && editingMapName.value.trim()) {
+    map.name = editingMapName.value.trim()
+  }
+  editingMapId.value = null
+  editingMapName.value = ''
+}
+
+// Cancel map edit
 const cancelMapEdit = () => {
-  editingMapId.value = null;
-  editingMapName.value = '';
-};
+  editingMapId.value = null
+  editingMapName.value = ''
+}
 
-// 删除地图 / Delete map
+// Delete map
 const deleteMap = (mapId) => {
-  if (confirm('Are you sure you want to delete this map? (确定要删除这个地图吗?)')) {
-    const index = maps.value.findIndex(m => m.id === mapId);
+  if (confirm('Are you sure you want to delete this map?')) {
+    const index = maps.value.findIndex((m) => m.id === mapId)
     if (index !== -1) {
-      maps.value.splice(index, 1);
+      maps.value.splice(index, 1)
     }
   }
-};
+}
 
-// 创建新楼层 / Create new floor
+// Create new floor
 const createFloor = (map) => {
-  console.log('Creating floor for map:', map.id);
-  emit('create-floor', map);
-};
+  console.log('Creating floor for map:', map.id)
+  emit('create-floor', map)
+}
 
-// 编辑楼层 (网格) / Edit floor (grid)
+// Edit floor (grid)
 const editFloor = (floor) => {
-  console.log('Editing floor grid:', floor.id);
-  emit('edit-floor', floor);
-};
+  console.log('Editing floor grid:', floor.id)
+  emit('edit-floor', floor)
+}
 
-// 开始编辑楼层信息 / Start editing floor info
+// Start editing floor info
 const startEditFloor = (floor) => {
-  editingFloorId.value = floor.id;
+  editingFloorId.value = floor.id
   editingFloorData.value = {
     name: floor.name,
-    number: floor.number
-  };
-};
+    number: floor.number,
+  }
+}
 
-// 保存楼层编辑 / Save floor edit
+// Save floor edit
 const saveFloorEdit = (floorId) => {
   for (const map of maps.value) {
-    const floor = map.floors.find(f => f.id === floorId);
+    const floor = map.floors.find((f) => f.id === floorId)
     if (floor) {
-      floor.name = editingFloorData.value.name.trim() || floor.name;
-      floor.number = editingFloorData.value.number;
-      editingFloorId.value = null;
-      return;
+      floor.name = editingFloorData.value.name.trim() || floor.name
+      floor.number = editingFloorData.value.number
+      editingFloorId.value = null
+      return
     }
   }
-};
+}
 
-// 取消楼层编辑 / Cancel floor edit
+// Cancel floor edit
 const cancelFloorEdit = () => {
-  editingFloorId.value = null;
-  editingFloorData.value = { name: '', number: 0 };
-};
+  editingFloorId.value = null
+  editingFloorData.value = { name: '', number: 0 }
+}
 
-// 删除楼层 / Delete floor
+// Delete floor
 const deleteFloor = (mapId, floorId) => {
-  if (confirm('Are you sure you want to delete this floor? (确定要删除这个楼层吗?)')) {
-    const map = maps.value.find(m => m.id === mapId);
+  if (confirm('Are you sure you want to delete this floor?')) {
+    const map = maps.value.find((m) => m.id === mapId)
     if (map) {
-      const index = map.floors.findIndex(f => f.id === floorId);
+      const index = map.floors.findIndex((f) => f.id === floorId)
       if (index !== -1) {
-        map.floors.splice(index, 1);
-        map.numberOfFloors = map.floors.length;
+        map.floors.splice(index, 1)
+        map.numberOfFloors = map.floors.length
       }
     }
   }
-};
+}
 
-// 添加新楼层到地图 / Add new floor to map
+// Add new floor to map
 const addFloorToMap = (mapId, floorData) => {
-  const map = maps.value.find(m => m.id === mapId);
+  const map = maps.value.find((m) => m.id === mapId)
   if (map) {
     const newFloor = {
-      id: Math.max(...map.floors.map(f => f.id || 0), 0) + 1,
+      id: Math.max(...map.floors.map((f) => f.id || 0), 0) + 1,
       ...floorData,
-      cells: []
-    };
-    map.floors.push(newFloor);
-    map.numberOfFloors = map.floors.length;
-    return newFloor;
+      cells: [],
+    }
+    map.floors.push(newFloor)
+    map.numberOfFloors = map.floors.length
+    return newFloor
   }
-};
+}
 
-// 更新楼层的填充格子 / Update floor filled cells
+// Update floor filled cells
 const updateFloorCells = (floorId, cellsData) => {
   for (const map of maps.value) {
-    const floor = map.floors.find(f => f.id === floorId);
+    const floor = map.floors.find((f) => f.id === floorId)
     if (floor) {
-      cellsData.forEach(cellData => {
-        const existingCell = floor.cells.find(
-          c => c.x === cellData.x && c.y === cellData.y
-        );
+      cellsData.forEach((cellData) => {
+        const existingCell = floor.cells.find((c) => c.x === cellData.x && c.y === cellData.y)
         if (existingCell) {
-          existingCell.isFilled = cellData.isFilled;
+          existingCell.isFilled = cellData.isFilled
         } else {
           floor.cells.push({
-            id: Math.max(...floor.cells.map(c => c.id || 0), 0) + 1,
+            id: Math.max(...floor.cells.map((c) => c.id || 0), 0) + 1,
             x: cellData.x,
             y: cellData.y,
             isFilled: cellData.isFilled,
-            floorId: floorId
-          });
+            floorId: floorId,
+          })
         }
-      });
-      return floor;
+      })
+      return floor
     }
   }
-};
+}
 
-// 定义可用的方法供外部调用 / Define available methods for external calls
+// Define available methods for external calls
 defineExpose({
   addFloorToMap,
-  updateFloorCells
-});
+  updateFloorCells,
+})
 </script>
 
 <style scoped>
@@ -753,7 +730,7 @@ defineExpose({
   margin-bottom: 0;
 }
 
-/* 响应式设计 / Responsive Design */
+/* Responsive Design */
 @media (max-width: 1024px) {
   .maps-grid {
     grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));

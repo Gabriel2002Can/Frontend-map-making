@@ -1,23 +1,19 @@
 <template>
   <div class="floor-form-container">
     <div class="floor-form-card">
-      <!-- 标题 / Title -->
+      <!-- Title -->
       <h1 class="floor-form-title">Create New Floor</h1>
 
-      <!-- 返回按钮 / Back Button -->
+      <!-- Back Button -->
       <div class="back-button-container">
-        <button @click="goBack" class="back-button">
-          ← Back to Map
-        </button>
+        <button @click="goBack" class="back-button">← Back to Map</button>
       </div>
 
-      <!-- 表单区域 / Form Section -->
+      <!-- Form Section -->
       <form @submit.prevent="submitForm" class="form-section">
-        <!-- 楼层名称 / Floor Name -->
+        <!-- Floor Name -->
         <div class="form-group">
-          <label for="floor-name" class="form-label">
-            Floor Name (楼层名称) *
-          </label>
+          <label for="floor-name" class="form-label"> Floor Name * </label>
           <input
             id="floor-name"
             v-model="formData.name"
@@ -29,11 +25,9 @@
           <span class="form-help">Give your floor a descriptive name</span>
         </div>
 
-        <!-- 楼层编号 / Floor Number -->
+        <!-- Floor Number -->
         <div class="form-group">
-          <label for="floor-number" class="form-label">
-            Floor Number (楼层编号) *
-          </label>
+          <label for="floor-number" class="form-label"> Floor Number * </label>
           <input
             id="floor-number"
             v-model.number="formData.number"
@@ -45,15 +39,13 @@
           <span class="form-help">Numeric identifier for the floor</span>
         </div>
 
-        <!-- 维度信息 / Dimensions Section -->
-        <div class="form-section-title">Floor Dimensions (楼层尺寸)</div>
+        <!-- Dimensions Section -->
+        <div class="form-section-title">Floor Dimensions</div>
 
         <div class="form-row">
-          <!-- X维度 (宽度) / X Dimension (Width) -->
+          <!-- X Dimension (Width) -->
           <div class="form-group">
-            <label for="dimension-x" class="form-label">
-              Width (X Dimension - 宽度) *
-            </label>
+            <label for="dimension-x" class="form-label"> Width (X Dimension) * </label>
             <input
               id="dimension-x"
               v-model.number="formData.dimensionX"
@@ -67,11 +59,9 @@
             <span class="form-help">Grid width (1-50)</span>
           </div>
 
-          <!-- Y维度 (高度) / Y Dimension (Height) -->
+          <!-- Y Dimension (Height) -->
           <div class="form-group">
-            <label for="dimension-y" class="form-label">
-              Height (Y Dimension - 高度) *
-            </label>
+            <label for="dimension-y" class="form-label"> Height (Y Dimension) * </label>
             <input
               id="dimension-y"
               v-model.number="formData.dimensionY"
@@ -86,41 +76,42 @@
           </div>
         </div>
 
-        <!-- 预览区 / Preview Section -->
+        <!-- Preview Section -->
         <div class="preview-section">
-          <h3 class="preview-title">Preview (预览)</h3>
+          <h3 class="preview-title">Preview</h3>
           <div class="preview-content">
             <p><strong>Floor Name:</strong> {{ formData.name || 'Not set' }}</p>
             <p><strong>Floor Number:</strong> {{ formData.number || 'Not set' }}</p>
-            <p><strong>Grid Size:</strong> {{ formData.dimensionX }} × {{ formData.dimensionY }} cells</p>
-            <p><strong>Total Cells:</strong> {{ formData.dimensionX * formData.dimensionY }} cells</p>
+            <p>
+              <strong>Grid Size:</strong> {{ formData.dimensionX }} ×
+              {{ formData.dimensionY }} cells
+            </p>
+            <p>
+              <strong>Total Cells:</strong> {{ formData.dimensionX * formData.dimensionY }} cells
+            </p>
           </div>
         </div>
 
-        <!-- 提交按钮 / Submit Buttons -->
+        <!-- Submit Buttons -->
         <div class="form-buttons">
-          <button type="submit" class="submit-button" :disabled="!isFormValid">
-            Create Floor
-          </button>
-          <button type="button" @click="resetForm" class="reset-form-button">
-            Reset Form
-          </button>
+          <button type="submit" class="submit-button" :disabled="!isFormValid">Create Floor</button>
+          <button type="button" @click="resetForm" class="reset-form-button">Reset Form</button>
         </div>
 
-        <!-- 验证消息 / Validation Message -->
+        <!-- Validation Message -->
         <p v-if="!isFormValid" class="validation-error">
           ⚠️ Please fill all required fields and ensure dimensions are between 1-50
         </p>
 
-        <!-- 提交结果 / Submission Result -->
+        <!-- Submission Result -->
         <div v-if="submitMessage" :class="['submit-message', submitMessage.type]">
           {{ submitMessage.text }}
         </div>
       </form>
 
-      <!-- JSON预览 / JSON Preview -->
+      <!-- JSON Preview -->
       <div class="json-preview">
-        <h3 class="json-preview-title">Request Payload (将要发送的数据 / JSON Preview)</h3>
+        <h3 class="json-preview-title">Request Payload (JSON Preview)</h3>
         <div class="json-content">
           <pre>{{ JSON.stringify(generatePayload(), null, 2) }}</pre>
         </div>
@@ -130,89 +121,90 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
-// 定义发射事件 / Define emitted events
-const emit = defineEmits(['create-floor', 'back']);
+// Define emitted events
+const emit = defineEmits(['create-floor', 'back'])
 
-// 表单数据 / Form data
+// Form data
 const formData = ref({
   name: '',
   number: 1,
   dimensionX: 10,
   dimensionY: 10,
-  mapId: 1 // 假设mapId为1 / Assume mapId is 1
-});
+  mapId: 1, // Assume mapId is 1
+})
 
-// 提交消息 / Submission message
-const submitMessage = ref(null);
+// Submission message
+const submitMessage = ref(null)
 
-// 验证表单 / Validate form
+// Validate form
 const isFormValid = computed(() => {
   return (
     formData.value.name.trim() !== '' &&
     formData.value.number > 0 &&
-    formData.value.dimensionX >= 1 && formData.value.dimensionX <= 50 &&
-    formData.value.dimensionY >= 1 && formData.value.dimensionY <= 50
-  );
-});
+    formData.value.dimensionX >= 1 &&
+    formData.value.dimensionX <= 50 &&
+    formData.value.dimensionY >= 1 &&
+    formData.value.dimensionY <= 50
+  )
+})
 
-// 生成API负载 / Generate API payload
+// Generate API payload
 const generatePayload = () => {
   return {
     name: formData.value.name,
     number: formData.value.number,
     dimensionX: formData.value.dimensionX,
     dimensionY: formData.value.dimensionY,
-    mapId: formData.value.mapId
-  };
-};
+    mapId: formData.value.mapId,
+  }
+}
 
-// 提交表单 / Submit form
+// Submit form
 const submitForm = () => {
-  if (!isFormValid.value) return;
+  if (!isFormValid.value) return
 
-  // 模拟API调用 / Simulate API call
-  // 在实际应用中，这里会调用 POST /api/floor
+  // Simulate API call
   // In actual implementation, this would call POST /api/floor
-  const payload = generatePayload();
+  const payload = generatePayload()
 
-  // 发射事件 / Emit event with floor data
-  emit('create-floor', payload);
+  // Emit event with floor data
+  emit('create-floor', payload)
 
-  // 显示成功消息 / Show success message
+  // Show success message
   submitMessage.value = {
     type: 'success',
-    text: `✓ Floor "${formData.value.name}" created successfully! (Ready to send to backend)`
-  };
+    text: `✓ Floor "${formData.value.name}" created successfully! (Ready to send to backend)`,
+  }
 
-  // 3秒后清除消息 / Clear message after 3 seconds
+  // Clear message after 3 seconds
   setTimeout(() => {
-    submitMessage.value = null;
-  }, 3000);
+    submitMessage.value = null
+  }, 3000)
 
-  // 重置表单 / Reset form
+  // Reset form
   setTimeout(() => {
-    resetForm();
-  }, 1500);
-};
+    resetForm()
+  }, 1500)
+}
 
-// 重置表单 / Reset form
+// Reset form
 const resetForm = () => {
   formData.value = {
     name: '',
     number: 1,
     dimensionX: 10,
     dimensionY: 10,
-    mapId: 1
-  };
-  submitMessage.value = null;
-};
+    mapId: 1,
+  }
+  submitMessage.value = null
+}
 
-// 返回上一页 / Go back
+// Go back
 const goBack = () => {
-  emit('back');
-};
+  emit('back')
+}
 </script>
 
 <style scoped>

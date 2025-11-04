@@ -1,16 +1,14 @@
 <template>
   <div class="floor-editor-container">
     <div class="floor-editor-card">
-      <!-- 返回按钮 / Back Button -->
+      <!-- Back Button -->
       <div class="editor-header">
-        <button @click="goBack" class="back-button">
-          ← Back to Maps
-        </button>
+        <button @click="goBack" class="back-button">← Back to Maps</button>
         <h1 class="editor-title">Floor Editor</h1>
         <div class="header-spacer"></div>
       </div>
 
-      <!-- 楼层信息 / Floor Information -->
+      <!-- Floor Information -->
       <div class="floor-info">
         <div class="info-card">
           <span class="info-label">Floor Name:</span>
@@ -34,7 +32,7 @@
         </div>
       </div>
 
-      <!-- 工具栏 / Toolbar -->
+      <!-- Toolbar -->
       <div class="toolbar">
         <div class="toolbar-group">
           <label class="zoom-label">Zoom:</label>
@@ -51,9 +49,9 @@
         </div>
       </div>
 
-      <!-- 编辑区 / Editing Area - 响应式根据设备类型调整 -->
+      <!-- Editing Area -->
       <div class="editor-wrapper" :class="`device-${deviceType}`">
-        <!-- 网格 / Grid -->
+        <!-- Grid -->
         <div class="grid-wrapper">
           <div class="grid-container" :style="gridStyle">
             <div
@@ -68,9 +66,9 @@
           </div>
         </div>
 
-        <!-- 右侧面板 / Right Panel - 仅在桌面版显示 -->
+        <!-- Right Panel -->
         <div v-if="deviceType === 'desktop'" class="editor-sidebar">
-          <!-- 已填充格子列表 / Filled Cells List -->
+          <!-- Filled Cells List -->
           <div class="filled-cells-section">
             <h3 class="section-title">Filled Cells {{ filledCells.length }}/{{ totalCells }}</h3>
             <div class="filled-cells-list">
@@ -90,7 +88,7 @@
             </div>
           </div>
 
-          <!-- JSON预览 / JSON Preview -->
+          <!-- JSON Preview -->
           <div class="json-section">
             <h3 class="section-title">JSON Payload</h3>
             <div class="json-output">
@@ -99,7 +97,7 @@
           </div>
         </div>
 
-        <!-- 移动设备的摘要 / Mobile summary -->
+        <!-- Mobile summary -->
         <div v-else class="mobile-summary">
           <div class="summary-card">
             <span class="summary-label">Filled:</span>
@@ -108,17 +106,15 @@
         </div>
       </div>
 
-      <!-- 底部按钮 / Bottom Buttons -->
+      <!-- Bottom Buttons -->
       <div class="editor-footer">
         <button @click="saveChanges" class="save-button" :disabled="filledCells.length === 0">
           Save Changes
         </button>
-        <button @click="goBack" class="cancel-button">
-          Go Back
-        </button>
+        <button @click="goBack" class="cancel-button">Go Back</button>
       </div>
 
-      <!-- 操作消息 / Action Message -->
+      <!-- Action Message -->
       <transition name="fade">
         <div v-if="actionMessage" :class="['action-message', actionMessage.type]">
           {{ actionMessage.text }}
@@ -129,237 +125,231 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 
-// 定义发射事件 / Define emitted events
-const emit = defineEmits(['save-cells', 'back']);
+// Define emitted events
+const emit = defineEmits(['save-cells', 'back'])
 
-// 接收props / Receive props
+// Receive props
 const props = defineProps({
   floor: {
     type: Object,
-    required: true
-  }
-});
+    required: true,
+  },
+})
 
-// 反应式数据 / Reactive data
-const zoomLevel = ref(1);
-const actionMessage = ref(null);
-const filledCellsData = ref([]);
-const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200);
+// Reactive data
+const zoomLevel = ref(1)
+const actionMessage = ref(null)
+const filledCellsData = ref([])
+const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
-// 初始化已填充的格子 / Initialize filled cells from props
+// Initialize filled cells from props
 if (props.floor.cells && Array.isArray(props.floor.cells)) {
-  filledCellsData.value = props.floor.cells.filter(cell => cell.isFilled);
+  filledCellsData.value = props.floor.cells.filter((cell) => cell.isFilled)
 }
 
-// 监听窗口大小 / Listen to window size
+// Listen to window size
 const handleResize = () => {
   if (typeof window !== 'undefined') {
-    windowWidth.value = window.innerWidth;
+    windowWidth.value = window.innerWidth
   }
-};
+}
 
 onMounted(() => {
-  window.addEventListener('resize', handleResize);
-});
+  window.addEventListener('resize', handleResize)
+})
 
 onUnmounted(() => {
-  window.removeEventListener('resize', handleResize);
-});
+  window.removeEventListener('resize', handleResize)
+})
 
-// 计算设备类型 / Compute device type
-// 手机: < 640px
-// 平板: 640px - 1024px
-// 电脑: >= 1024px
+// Compute device type
+// mobile: < 640px
+// tablet: 640px - 1024px
+// desktop: >= 1024px
 const deviceType = computed(() => {
-  if (windowWidth.value < 640) return 'mobile';
-  if (windowWidth.value < 1024) return 'tablet';
-  return 'desktop';
-});
+  if (windowWidth.value < 640) return 'mobile'
+  if (windowWidth.value < 1024) return 'tablet'
+  return 'desktop'
+})
 
-// 计算属性 / Computed properties
+// Computed properties
 
 const totalCells = computed(() => {
-  return props.floor.dimensionX * props.floor.dimensionY;
-});
+  return props.floor.dimensionX * props.floor.dimensionY
+})
 
 const filledCells = computed(() => {
-  return filledCellsData.value;
-});
+  return filledCellsData.value
+})
 
 const allCells = computed(() => {
-  const cells = [];
-  const filledMap = new Map(
-    filledCells.value.map(cell => [`${cell.x}-${cell.y}`, true])
-  );
+  const cells = []
+  const filledMap = new Map(filledCells.value.map((cell) => [`${cell.x}-${cell.y}`, true]))
 
   for (let y = 1; y <= props.floor.dimensionY; y++) {
     for (let x = 1; x <= props.floor.dimensionX; x++) {
       cells.push({
         x,
         y,
-        isFilled: filledMap.has(`${x}-${y}`)
-      });
+        isFilled: filledMap.has(`${x}-${y}`),
+      })
     }
   }
 
-  return cells;
-});
+  return cells
+})
 
-// 🔑 关键: 根据设备类型和网格大小计算单元格尺寸 (使用 px)
+// 🔑 Key: compute cell size based on device type and grid size (in px)
 const gridStyle = computed(() => {
-  const cols = props.floor.dimensionX;
-  const rows = props.floor.dimensionY;
+  const cols = props.floor.dimensionX
+  const rows = props.floor.dimensionY
 
-  let baseCellSize = 40;
+  let baseCellSize = 40
 
-  // 针对不同设备类型调整基础单元格大小
+  // Adjust base cell size for different device types
   if (deviceType.value === 'mobile') {
-    // 手机: 优先显示完整网格
+    // mobile: prefer showing full grid
     if (rows > 20) {
-      baseCellSize = 24;
+      baseCellSize = 24
     } else if (rows > 15) {
-      baseCellSize = 28;
+      baseCellSize = 28
     } else if (rows > 12) {
-      baseCellSize = 32;
+      baseCellSize = 32
     } else if (rows > 8) {
-      baseCellSize = 38;
+      baseCellSize = 38
     } else {
-      baseCellSize = 44;
+      baseCellSize = 44
     }
   } else if (deviceType.value === 'tablet') {
-    // 平板: 平衡显示和可操作性
+    // tablet: balance visibility and operability
     if (rows > 20) {
-      baseCellSize = 34;
+      baseCellSize = 34
     } else if (rows > 15) {
-      baseCellSize = 42;
+      baseCellSize = 42
     } else if (rows > 12) {
-      baseCellSize = 50;
+      baseCellSize = 50
     } else if (rows > 8) {
-      baseCellSize = 60;
+      baseCellSize = 60
     } else {
-      baseCellSize = 72;
+      baseCellSize = 72
     }
   } else {
-    // 电脑: 足够大的单元格便于精确编辑
+    // desktop: larger cells for precise editing
     if (rows > 20) {
-      baseCellSize = 44;
+      baseCellSize = 44
     } else if (rows > 15) {
-      baseCellSize = 56;
+      baseCellSize = 56
     } else if (rows > 12) {
-      baseCellSize = 68;
+      baseCellSize = 68
     } else if (rows > 8) {
-      baseCellSize = 84;
+      baseCellSize = 84
     } else {
-      baseCellSize = 100;
+      baseCellSize = 100
     }
   }
 
-  // 应用缩放 / Apply zoom
-  const finalCellSize = baseCellSize * zoomLevel.value;
+  // Apply zoom
+  const finalCellSize = baseCellSize * zoomLevel.value
 
   return {
     gridTemplateColumns: `repeat(${cols}, ${finalCellSize}px)`,
-    gap: '0.25rem'
-  };
-});
+    gap: '0.25rem',
+  }
+})
 
-// 方法 / Methods
+// Methods
 
 const toggleCell = (cell) => {
-  const index = filledCellsData.value.findIndex(
-    c => c.x === cell.x && c.y === cell.y
-  );
+  const index = filledCellsData.value.findIndex((c) => c.x === cell.x && c.y === cell.y)
 
   if (index !== -1) {
-    filledCellsData.value.splice(index, 1);
+    filledCellsData.value.splice(index, 1)
   } else {
     filledCellsData.value.push({
       x: cell.x,
       y: cell.y,
-      isFilled: true
-    });
+      isFilled: true,
+    })
   }
-};
+}
 
 const removeCell = (cell) => {
-  const index = filledCellsData.value.findIndex(
-    c => c.x === cell.x && c.y === cell.y
-  );
+  const index = filledCellsData.value.findIndex((c) => c.x === cell.x && c.y === cell.y)
 
   if (index !== -1) {
-    filledCellsData.value.splice(index, 1);
+    filledCellsData.value.splice(index, 1)
   }
-};
+}
 
 const fillAll = () => {
-  filledCellsData.value = [];
+  filledCellsData.value = []
   for (let y = 1; y <= props.floor.dimensionY; y++) {
     for (let x = 1; x <= props.floor.dimensionX; x++) {
       filledCellsData.value.push({
         x,
         y,
-        isFilled: true
-      });
+        isFilled: true,
+      })
     }
   }
-  showMessage('All cells filled!', 'success');
-};
+  showMessage('All cells filled!', 'success')
+}
 
 const clearAll = () => {
   if (filledCells.value.length === 0) {
-    showMessage('No cells to clear', 'info');
-    return;
+    showMessage('No cells to clear', 'info')
+    return
   }
-  filledCellsData.value = [];
-  showMessage('All cells cleared!', 'success');
-};
+  filledCellsData.value = []
+  showMessage('All cells cleared!', 'success')
+}
 
 const zoomIn = () => {
   if (zoomLevel.value < 2) {
-    zoomLevel.value += 0.2;
+    zoomLevel.value += 0.2
   }
-};
+}
 
 const zoomOut = () => {
   if (zoomLevel.value > 0.5) {
-    zoomLevel.value -= 0.2;
+    zoomLevel.value -= 0.2
   }
-};
+}
 
 const generatePayload = () => {
   return {
     floorId: props.floor.id,
-    cells: filledCells.value.map(cell => ({
+    cells: filledCells.value.map((cell) => ({
       x: cell.x,
       y: cell.y,
-      isFilled: true
-    }))
-  };
-};
+      isFilled: true,
+    })),
+  }
+}
 
 const saveChanges = () => {
   if (filledCells.value.length === 0) {
-    showMessage('Please fill at least one cell', 'error');
-    return;
+    showMessage('Please fill at least one cell', 'error')
+    return
   }
 
-  const payload = generatePayload();
-  emit('save-cells', payload);
-  showMessage('✓ Changes saved!', 'success');
-};
+  const payload = generatePayload()
+  emit('save-cells', payload)
+  showMessage('✓ Changes saved!', 'success')
+}
 
 const showMessage = (text, type = 'info') => {
-  actionMessage.value = { text, type };
+  actionMessage.value = { text, type }
   setTimeout(() => {
-    actionMessage.value = null;
-  }, 3000);
-};
+    actionMessage.value = null
+  }, 3000)
+}
 
 const goBack = () => {
-  emit('back');
-};
+  emit('back')
+}
 </script>
 
 <style scoped>
@@ -382,7 +372,7 @@ const goBack = () => {
   border: 1px solid #374151;
 }
 
-/* 标题 / Header */
+/* Header */
 .editor-header {
   display: flex;
   justify-content: space-between;
@@ -421,7 +411,7 @@ const goBack = () => {
   width: 100px;
 }
 
-/* 楼层信息 / Floor Info */
+/* Floor Info */
 .floor-info {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
@@ -458,7 +448,7 @@ const goBack = () => {
   border-radius: 0.25rem;
 }
 
-/* 工具栏 / Toolbar */
+/* Toolbar */
 .toolbar {
   display: flex;
   justify-content: space-between;
@@ -548,29 +538,29 @@ const goBack = () => {
   background-color: #dc2626;
 }
 
-/* 编辑区 / Editor Wrapper - 响应式关键 */
+/* Editor Wrapper - responsive */
 .editor-wrapper {
   display: grid;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
 }
 
-/* 手机: 单列 */
+/* mobile: single column */
 .editor-wrapper.device-mobile {
   grid-template-columns: 1fr;
 }
 
-/* 平板: 单列 */
+/* tablet: single column */
 .editor-wrapper.device-tablet {
   grid-template-columns: 1fr;
 }
 
-/* 电脑: 两列 (网格占大部分, 侧栏300px) */
+/* desktop: two columns (grid main, sidebar 300px) */
 .editor-wrapper.device-desktop {
   grid-template-columns: 1fr 300px;
 }
 
-/* 网格区 / Grid Wrapper */
+/* Grid Wrapper */
 .grid-wrapper {
   display: flex;
   justify-content: center;
@@ -592,7 +582,7 @@ const goBack = () => {
   place-self: start center;
 }
 
-/* 网格单元 / Grid Cell */
+/* Grid Cell */
 .grid-cell {
   display: flex;
   align-items: center;
@@ -643,7 +633,7 @@ const goBack = () => {
   font-size: 0.5rem;
 }
 
-/* 右侧面板 / Sidebar (仅桌面) */
+/* Sidebar (desktop only) */
 .editor-sidebar {
   display: flex;
   flex-direction: column;
@@ -719,7 +709,7 @@ const goBack = () => {
   line-height: 1.4;
 }
 
-/* 移动设备摘要 / Mobile Summary */
+/* Mobile Summary */
 .mobile-summary {
   background-color: #374151;
   padding: 1rem;
@@ -747,7 +737,7 @@ const goBack = () => {
   color: #10b981;
 }
 
-/* 底部按钮 / Footer */
+/* Footer */
 .editor-footer {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -795,7 +785,7 @@ const goBack = () => {
   background-color: #4b5563;
 }
 
-/* 操作消息 / Action Message */
+/* Action Message */
 .action-message {
   position: fixed;
   top: 2rem;
@@ -832,7 +822,7 @@ const goBack = () => {
   opacity: 0;
 }
 
-/* 平板响应式调整 / Tablet adjustments */
+/* Tablet adjustments */
 @media (max-width: 1024px) {
   .floor-editor-card {
     padding: 1rem;
@@ -857,7 +847,7 @@ const goBack = () => {
   }
 }
 
-/* 手机响应式调整 / Mobile adjustments */
+/* Mobile adjustments */
 @media (max-width: 640px) {
   .floor-editor-container {
     padding: 0.25rem;

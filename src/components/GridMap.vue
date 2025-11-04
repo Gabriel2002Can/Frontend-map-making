@@ -1,19 +1,19 @@
 <template>
   <div class="grid-map-container">
     <div class="grid-map-card">
-      <!-- 标题 / Title -->
-      <h1 class="grid-map-title">Grid Map Viewer (网格地图查看器)</h1>
+      <!-- Title -->
+      <h1 class="grid-map-title">Grid Map Viewer</h1>
 
-      <!-- 输入界面 / Input Interface -->
+      <!-- Input Interface -->
       <div v-if="!gridGenerated" class="input-section">
         <div class="input-description">
           <p>Enter the dimensions for your grid map</p>
-          <p class="subtitle">输入你的网格地图尺寸</p>
+          <p class="subtitle">Enter your grid map dimensions</p>
         </div>
 
         <div class="input-group">
           <div class="input-field">
-            <label for="cols-input">Columns (宽度 / X Dimension)</label>
+            <label for="cols-input">Columns (X Dimension)</label>
             <input
               id="cols-input"
               v-model.number="inputCols"
@@ -28,7 +28,7 @@
           <div class="input-separator">×</div>
 
           <div class="input-field">
-            <label for="rows-input">Rows (高度 / Y Dimension)</label>
+            <label for="rows-input">Rows (Y Dimension)</label>
             <input
               id="rows-input"
               v-model.number="inputRows"
@@ -41,12 +41,8 @@
           </div>
         </div>
 
-        <button
-          @click="generateGrid"
-          class="generate-button"
-          :disabled="!isValidInput"
-        >
-          Generate Grid (生成网格)
+        <button @click="generateGrid" class="generate-button" :disabled="!isValidInput">
+          Generate Grid
         </button>
 
         <p v-if="!isValidInput" class="validation-message">
@@ -54,21 +50,19 @@
         </p>
       </div>
 
-      <!-- 地图显示界面 / Map Display Interface -->
+      <!-- Map Display Interface -->
       <div v-else>
-        <!-- 头部操作区 / Header Actions -->
+        <!-- Header Actions -->
         <div class="header-actions">
           <div class="header-left">
-            <p class="grid-map-dimensions">
-              Dimensions (尺寸): {{ mapData.gridDimensions }}
-            </p>
+            <p class="grid-map-dimensions">Dimensions: {{ mapData.gridDimensions }}</p>
             <p class="grid-info">
-              Total Cells (总数): {{ allCells.length }} | Filled Cells (已填充): {{ filledCells.length }}
+              Total Cells: {{ allCells.length }} | Filled Cells: {{ filledCells.length }}
             </p>
           </div>
 
           <div class="control-buttons">
-            <!-- 缩放控制 / Zoom Controls -->
+            <!-- Zoom Controls -->
             <div class="zoom-controls">
               <button @click="zoomOut" class="zoom-button" :disabled="zoomLevel <= 0.5">
                 <span>−</span>
@@ -79,40 +73,32 @@
               </button>
             </div>
 
-            <!-- 操作按钮 / Action Buttons -->
-            <button @click="fillAll" class="action-button fill-all">
-              Fill All (全部填充)
-            </button>
-            <button @click="clearAll" class="action-button clear-all">
-              Clear All (全部清空)
-            </button>
-            <button @click="resetGrid" class="reset-button">
-              Change Size (改变尺寸)
-            </button>
+            <!-- Action Buttons -->
+            <button @click="fillAll" class="action-button fill-all">Fill All</button>
+            <button @click="clearAll" class="action-button clear-all">Clear All</button>
+            <button @click="resetGrid" class="reset-button">Change Size</button>
           </div>
         </div>
 
-        <!-- 加载状态 / Loading state -->
-        <div v-if="loading" class="loading-state">
-          ⏳ Loading map data... (加载中...)
-        </div>
+        <!-- Loading state -->
+        <div v-if="loading" class="loading-state">⏳ Loading map data...</div>
 
-        <!-- 错误状态 / Error state -->
+        <!-- Error state -->
         <div v-else-if="error" class="error-state">
-          <h2>Error Loading Map (错误)</h2>
+          <h2>Error Loading Map</h2>
           <p>{{ error }}</p>
         </div>
 
-        <!-- 地图网格 / Map grid -->
+        <!-- Map grid -->
         <div v-else class="grid-wrapper">
           <div
             class="grid-container"
             :style="{
               gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-              '--cell-size': cellSize + 'rem'
+              '--cell-size': cellSize + 'rem',
             }"
           >
-            <!-- 遍历所有行和列，生成格子 / Iterate through all rows and columns to generate cells -->
+            <!-- Iterate through all rows and columns to generate cells -->
             <div
               v-for="(cell, index) in allCells"
               :key="index"
@@ -124,28 +110,24 @@
             </div>
           </div>
 
-          <!-- 右侧面板 / Right Panel -->
+          <!-- Right Panel -->
           <div class="grid-sidebar">
-            <!-- 已填充格子列表 / List of filled cells -->
+            <!-- List of filled cells -->
             <div class="filled-cells-container">
               <h2 class="filled-cells-title">
-                Filled Cells (已填充格子) - {{ filledCells.length }}/{{ allCells.length }}
+                Filled Cells - {{ filledCells.length }}/{{ allCells.length }}
               </h2>
               <div class="filled-cells-list">
                 <span v-if="filledCells.length === 0" class="empty-message">
-                  Click on cells to fill them (点击格子来填充)
+                  Click on cells to fill them
                 </span>
-                <span
-                  v-for="(cell, idx) in filledCells"
-                  :key="idx"
-                  class="filled-cell-tag"
-                >
+                <span v-for="(cell, idx) in filledCells" :key="idx" class="filled-cell-tag">
                   ({{ cell.x }}, {{ cell.y }})
                 </span>
               </div>
             </div>
 
-            <!-- JSON预览 / JSON Preview -->
+            <!-- JSON Preview -->
             <div class="json-preview">
               <h3 class="json-title">Current State (JSON)</h3>
               <div class="json-content">
@@ -160,44 +142,43 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed } from 'vue'
 
-// 输入的尺寸 / Input dimensions
-const inputCols = ref(5);
-const inputRows = ref(5);
+// Input dimensions
+const inputCols = ref(5)
+const inputRows = ref(5)
 
-// 是否已生成网格 / Whether grid is generated
-const gridGenerated = ref(false);
+// Whether grid is generated
+const gridGenerated = ref(false)
 
-// 响应式数据 / Reactive data
+// Reactive data
 const mapData = ref({
-  gridDimensions: "",
-  gridElements: []
-});
+  gridDimensions: '',
+  gridElements: [],
+})
 
-const loading = ref(false);
-const error = ref(null);
-const zoomLevel = ref(1);
+const loading = ref(false)
+const error = ref(null)
+const zoomLevel = ref(1)
 
 // ============================================
-// 方式2: 从API获取数据 (注释掉) / Method 2: Fetch from API (commented out)
-// 使用时需要取消下面的注释，并导入 onMounted
+// Method 2: Fetch from API (commented out)
 // When using, uncomment below and import onMounted
 // ============================================
 //
 // onMounted(async () => {
-//   // 如果需要在加载时从API获取数据 / If need to fetch data from API on load
+//   // If need to fetch data from API on load
 //   loading.value = true;
 //
 //   try {
-//     // 从API获取地图数据 / Fetch map data from API
+//     // Fetch map data from API
 //     const response = await fetch('https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net/api/floor/1');
 //
 //     if (!response.ok) {
 //       throw new Error('Network response was not ok');
 //     }
 //
-//     // API应该返回格式: / API should return format:
+//     // API should return format:
 //     // {
 //     //   id: 1,
 //     //   name: "Floor 1",
@@ -212,13 +193,13 @@ const zoomLevel = ref(1);
 //     // }
 //     const floor = await response.json();
 //
-//     // 转换API数据为内部格式 / Convert API data to internal format
+//     // Convert API data to internal format
 //     mapData.value = {
 //       gridDimensions: `${floor.dimensionX}x${floor.dimensionY}`,
 //       gridElements: floor.cells || []
 //     };
 //
-//     gridGenerated.value = true; // 自动显示网格 / Automatically show grid
+//     gridGenerated.value = true; // Automatically show grid
 //   } catch (err) {
 //     console.error('Error fetching map data:', err);
 //     error.value = err.message;
@@ -227,158 +208,156 @@ const zoomLevel = ref(1);
 //   }
 // });
 
-// 验证输入 / Validate input
+// Validate input
 const isValidInput = computed(() => {
-  return inputCols.value >= 1 && inputCols.value <= 20 &&
-         inputRows.value >= 1 && inputRows.value <= 20;
-});
+  return (
+    inputCols.value >= 1 && inputCols.value <= 20 && inputRows.value >= 1 && inputRows.value <= 20
+  )
+})
 
-// 生成网格 / Generate grid
+// Generate grid
 const generateGrid = () => {
-  if (!isValidInput.value) return;
+  if (!isValidInput.value) return
 
-  // 生成网格 / Generate grid structure
+  // Generate grid structure
   mapData.value = {
     gridDimensions: `${inputCols.value}x${inputRows.value}`,
-    gridElements: []
-  };
+    gridElements: [],
+  }
 
-  gridGenerated.value = true;
-};
+  gridGenerated.value = true
+}
 
-// 重置网格 / Reset grid
+// Reset grid
 const resetGrid = () => {
-  gridGenerated.value = false;
+  gridGenerated.value = false
   mapData.value = {
-    gridDimensions: "",
-    gridElements: []
-  };
-};
+    gridDimensions: '',
+    gridElements: [],
+  }
+}
 
-// 切换格子状态 / Toggle cell state
+// Toggle cell state
 const toggleCell = (cell) => {
-  const index = mapData.value.gridElements.findIndex(
-    el => el.x === cell.x && el.y === cell.y
-  );
+  const index = mapData.value.gridElements.findIndex((el) => el.x === cell.x && el.y === cell.y)
 
   if (index !== -1) {
-    // 如果已存在，移除 / If exists, remove
-    mapData.value.gridElements.splice(index, 1);
+    // If exists, remove
+    mapData.value.gridElements.splice(index, 1)
   } else {
-    // 如果不存在，添加 / If doesn't exist, add
+    // If doesn't exist, add
     mapData.value.gridElements.push({
       x: cell.x,
       y: cell.y,
-      filled: true
-    });
+      filled: true,
+    })
   }
-};
+}
 
-// 填充所有格子 / Fill all cells
+// Fill all cells
 const fillAll = () => {
-  mapData.value.gridElements = [];
+  mapData.value.gridElements = []
   for (let y = 1; y <= rows.value; y++) {
     for (let x = 1; x <= cols.value; x++) {
       mapData.value.gridElements.push({
         x,
         y,
-        filled: true
-      });
+        filled: true,
+      })
     }
   }
-};
+}
 
-// 清空所有格子 / Clear all cells
+// Clear all cells
 const clearAll = () => {
-  mapData.value.gridElements = [];
-};
+  mapData.value.gridElements = []
+}
 
-// 放大 / Zoom in
+// Zoom in
 const zoomIn = () => {
   if (zoomLevel.value < 2) {
-    zoomLevel.value += 0.2;
+    zoomLevel.value += 0.2
   }
-};
+}
 
-// 缩小 / Zoom out
+// Zoom out
 const zoomOut = () => {
   if (zoomLevel.value > 0.5) {
-    zoomLevel.value -= 0.2;
+    zoomLevel.value -= 0.2
   }
-};
+}
 
-// 计算格子大小 / Calculate cell size based on grid dimensions
+// Calculate cell size based on grid dimensions
 const cellSize = computed(() => {
-  const maxCols = Math.max(cols.value, rows.value);
+  const maxCols = Math.max(cols.value, rows.value)
 
-  // 根据最大维度动态调整格子大小 / Dynamically adjust cell size based on max dimension
-  if (maxCols <= 5) return 4;      // 大格子 / Large cells
-  if (maxCols <= 8) return 3;      // 中等格子 / Medium cells
-  if (maxCols <= 12) return 2.5;   // 较小格子 / Smaller cells
-  if (maxCols <= 16) return 2;     // 小格子 / Small cells
-  return 1.5;                       // 最小格子 / Minimum cells
-});
+  // Dynamically adjust cell size based on max dimension
+  if (maxCols <= 5) return 4 // Large cells
+  if (maxCols <= 8) return 3 // Medium cells
+  if (maxCols <= 12) return 2.5 // Smaller cells
+  if (maxCols <= 16) return 2 // Small cells
+  return 1.5 // Minimum cells
+})
 
-// 计算字体大小 / Calculate font size based on cell size
+// Calculate font size based on cell size
 const fontSize = computed(() => {
-  if (cellSize.value >= 4) return '0.875rem';
-  if (cellSize.value >= 3) return '0.75rem';
-  if (cellSize.value >= 2.5) return '0.65rem';
-  if (cellSize.value >= 2) return '0.55rem';
-  return '0.5rem';
-});
+  if (cellSize.value >= 4) return '0.875rem'
+  if (cellSize.value >= 3) return '0.75rem'
+  if (cellSize.value >= 2.5) return '0.65rem'
+  if (cellSize.value >= 2) return '0.55rem'
+  return '0.5rem'
+})
 
-// 计算属性: 解析网格尺寸 / Computed: Parse grid dimensions
+// Computed: Parse grid dimensions
 const cols = computed(() => {
-  if (!mapData.value.gridDimensions) return 0;
-  const [c] = mapData.value.gridDimensions.split('x').map(Number);
-  return c;
-});
+  if (!mapData.value.gridDimensions) return 0
+  const [c] = mapData.value.gridDimensions.split('x').map(Number)
+  return c
+})
 
 const rows = computed(() => {
-  if (!mapData.value.gridDimensions) return 0;
-  const [, r] = mapData.value.gridDimensions.split('x').map(Number);
-  return r;
-});
+  if (!mapData.value.gridDimensions) return 0
+  const [, r] = mapData.value.gridDimensions.split('x').map(Number)
+  return r
+})
 
-// 计算属性: 获取所有填充的格子 / Computed: Get all filled cells
+// Computed: Get all filled cells
 const filledCells = computed(() => {
-  return mapData.value.gridElements.filter(el => el.filled);
-});
+  return mapData.value.gridElements.filter((el) => el.filled)
+})
 
-// 计算属性: 生成所有格子（包括空的）/ Computed: Generate all cells (including empty)
+// Computed: Generate all cells (including empty)
 const allCells = computed(() => {
-  const cells = [];
-  // 创建一个Map来快速查找已填充的格子 / Create a Map for fast lookup of filled cells
-  const filledMap = new Map(
-    filledCells.value.map(cell => [`${cell.x}-${cell.y}`, true])
-  );
+  const cells = []
+  // Create a Map for fast lookup of filled cells
+  const filledMap = new Map(filledCells.value.map((cell) => [`${cell.x}-${cell.y}`, true]))
 
-  // 遍历所有行和列 / Iterate through all rows and columns
+  // Iterate through all rows and columns
   for (let y = 1; y <= rows.value; y++) {
     for (let x = 1; x <= cols.value; x++) {
       cells.push({
         x,
         y,
-        filled: filledMap.has(`${x}-${y}`)
-      });
+        filled: filledMap.has(`${x}-${y}`),
+      })
     }
   }
 
-  return cells;
-});
+  return cells
+})
 
-// 获取当前状态的JSON / Get current state as JSON
+// Get current state as JSON
 const getCurrentState = () => {
   return {
     gridDimensions: mapData.value.gridDimensions,
     filledCells: filledCells.value,
     totalCells: allCells.value.length,
-    fillPercentage: allCells.value.length > 0
-      ? Math.round((filledCells.value.length / allCells.value.length) * 100)
-      : 0
-  };
-};
+    fillPercentage:
+      allCells.value.length > 0
+        ? Math.round((filledCells.value.length / allCells.value.length) * 100)
+        : 0,
+  }
+}
 </script>
 
 <style scoped>
@@ -409,7 +388,7 @@ const getCurrentState = () => {
   text-align: center;
 }
 
-/* 输入界面样式 / Input Interface Styles */
+/* Input Interface Styles */
 .input-section {
   display: flex;
   flex-direction: column;
@@ -509,7 +488,7 @@ const getCurrentState = () => {
   margin-top: 1rem;
 }
 
-/* 头部操作区 / Header Actions */
+/* Header Actions */
 .header-actions {
   display: flex;
   justify-content: space-between;
