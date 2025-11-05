@@ -44,8 +44,12 @@
         </div>
 
         <div class="toolbar-group">
-          <button @click="fillAll" class="action-button fill-all">Fill All</button>
-          <button @click="clearAll" class="action-button clear-all">Clear All</button>
+          <button @click="fillAll" class="action-button fill-all" :disabled="isSaving">
+            Fill All
+          </button>
+          <button @click="clearAll" class="action-button clear-all" :disabled="isSaving">
+            Clear All
+          </button>
         </div>
       </div>
 
@@ -53,6 +57,7 @@
       <div class="editor-wrapper" :class="`device-${deviceType}`">
         <!-- Grid -->
         <div class="grid-wrapper">
+          <div v-if="isLoadingCells" class="loading-overlay">Loading cells…</div>
           <div class="grid-container" :style="gridStyle">
             <div
               v-for="cell in allCells"
@@ -147,6 +152,7 @@ const props = defineProps({
 // Reactive data
 const zoomLevel = ref(1)
 const isSaving = ref(false)
+const isLoadingCells = ref(false)
 const actionMessage = ref(null)
 const filledCellsData = ref([])
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -158,6 +164,7 @@ if (props.floor.cells && Array.isArray(props.floor.cells)) {
 
 // Load filled cells from API to ensure we show the persisted state
 const loadInitialCells = async () => {
+  isLoadingCells.value = true
   try {
     const fullFloor = await getFloorById(props.floor.id)
     if (fullFloor && Array.isArray(fullFloor.cells)) {
@@ -167,6 +174,8 @@ const loadInitialCells = async () => {
     }
   } catch (err) {
     console.error('Failed to load floor cells:', err)
+  } finally {
+    isLoadingCells.value = false
   }
 }
 
@@ -293,6 +302,7 @@ const gridStyle = computed(() => {
 // Methods
 
 const toggleCell = (cell) => {
+  if (isLoadingCells.value) return
   const index = filledCellsData.value.findIndex((c) => c.x === cell.x && c.y === cell.y)
 
   if (index !== -1) {
@@ -307,6 +317,7 @@ const toggleCell = (cell) => {
 }
 
 const removeCell = (cell) => {
+  if (isLoadingCells.value) return
   const index = filledCellsData.value.findIndex((c) => c.x === cell.x && c.y === cell.y)
 
   if (index !== -1) {
@@ -315,6 +326,7 @@ const removeCell = (cell) => {
 }
 
 const fillAll = () => {
+  if (isLoadingCells.value) return
   filledCellsData.value = []
   for (let y = 1; y <= props.floor.dimensionY; y++) {
     for (let x = 1; x <= props.floor.dimensionX; x++) {
@@ -329,6 +341,7 @@ const fillAll = () => {
 }
 
 const clearAll = () => {
+  if (isLoadingCells.value) return
   if (filledCells.value.length === 0) {
     showMessage('No cells to clear', 'info')
     return
@@ -603,6 +616,7 @@ const goBack = () => {
   overflow: auto;
   border: 1px solid #374151;
   min-height: 500px;
+  position: relative;
 }
 
 .grid-container {
@@ -663,6 +677,18 @@ const goBack = () => {
 .grid-cell:hover .cell-text {
   display: block;
   font-size: 0.5rem;
+}
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e5e7eb;
+  font-weight: 600;
+  z-index: 2;
 }
 
 /* Sidebar (desktop only) */
