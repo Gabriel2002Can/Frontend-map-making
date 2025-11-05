@@ -59,6 +59,7 @@
             <p class="grid-info">
               Total Cells: {{ allCells.length }} | Filled Cells: {{ filledCells.length }}
             </p>
+            <p v-if="actionMessage" class="grid-info">{{ actionMessage }}</p>
           </div>
 
           <div class="control-buttons">
@@ -76,7 +77,18 @@
             <!-- Action Buttons -->
             <button @click="fillAll" class="action-button fill-all">Fill All</button>
             <button @click="clearAll" class="action-button clear-all">Clear All</button>
-            <button @click="resetGrid" class="reset-button">Change Size</button>
+            <button v-if="props.floorId == null" @click="resetGrid" class="reset-button">
+              Change Size
+            </button>
+            <button
+              v-else
+              @click="saveChanges"
+              class="action-button"
+              :disabled="isSaving"
+              style="background-color: #8b5cf6"
+            >
+              {{ isSaving ? 'Saving…' : 'Save Changes' }}
+            </button>
           </div>
         </div>
 
@@ -142,7 +154,13 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
+import { getFloorById, updateCells } from '@/api/backend'
+
+// Props (optional floorId enables API mode)
+const props = defineProps({
+  floorId: { type: Number, default: null },
+})
 
 // Input dimensions
 const inputCols = ref(5)
@@ -160,53 +178,30 @@ const mapData = ref({
 const loading = ref(false)
 const error = ref(null)
 const zoomLevel = ref(1)
+const isSaving = ref(false)
+const actionMessage = ref('')
 
-// ============================================
-// Method 2: Fetch from API (commented out)
-// When using, uncomment below and import onMounted
-// ============================================
-//
-// onMounted(async () => {
-//   // If need to fetch data from API on load
-//   loading.value = true;
-//
-//   try {
-//     // Fetch map data from API
-//     const response = await fetch('https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net/api/floor/1');
-//
-//     if (!response.ok) {
-//       throw new Error('Network response was not ok');
-//     }
-//
-//     // API should return format:
-//     // {
-//     //   id: 1,
-//     //   name: "Floor 1",
-//     //   number: 1,
-//     //   dimensionX: 10,
-//     //   dimensionY: 10,
-//     //   mapId: 1,
-//     //   cells: [
-//     //     { x: 1, y: 3, isFilled: true },
-//     //     ...
-//     //   ]
-//     // }
-//     const floor = await response.json();
-//
-//     // Convert API data to internal format
-//     mapData.value = {
-//       gridDimensions: `${floor.dimensionX}x${floor.dimensionY}`,
-//       gridElements: floor.cells || []
-//     };
-//
-//     gridGenerated.value = true; // Automatically show grid
-//   } catch (err) {
-//     console.error('Error fetching map data:', err);
-//     error.value = err.message;
-//   } finally {
-//     loading.value = false;
-//   }
-// });
+// Load from API if floorId provided
+onMounted(async () => {
+  if (props.floorId == null) return
+  loading.value = true
+  error.value = null
+  actionMessage.value = ''
+
+  try {
+    const floor = await getFloorById(props.floorId)
+    mapData.value = {
+      gridDimensions: `${floor.dimensionX}x${floor.dimensionY}`,
+      gridElements: (floor.cells || []).map((c) => ({ x: c.x, y: c.y, filled: !!c.isFilled })),
+    }
+    gridGenerated.value = true
+  } catch (err) {
+    console.error('Error fetching map data:', err)
+    error.value = err?.message || 'Failed to load floor'
+  } finally {
+    loading.value = false
+  }
+})
 
 // Validate input
 const isValidInput = computed(() => {
@@ -271,6 +266,31 @@ const fillAll = () => {
 // Clear all cells
 const clearAll = () => {
   mapData.value.gridElements = []
+}
+
+// Save changes to API (only in API mode)
+const saveChanges = async () => {
+  if (props.floorId == null || isSaving.value) return
+  isSaving.value = true
+  actionMessage.value = ''
+  error.value = null
+
+  try {
+    const payload = {
+      floorId: props.floorId,
+      cells: allCells.value.map((c) => ({ x: c.x, y: c.y, isFilled: !!c.filled })),
+    }
+    await updateCells(payload)
+    actionMessage.value = '✓ Changes saved successfully'
+  } catch (err) {
+    console.error('Error saving cells:', err)
+    error.value = err?.message || 'Failed to save changes'
+  } finally {
+    setTimeout(() => {
+      actionMessage.value = ''
+    }, 3000)
+    isSaving.value = false
+  }
 }
 
 // Zoom in

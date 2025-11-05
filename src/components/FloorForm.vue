@@ -94,7 +94,9 @@
 
         <!-- Submit Buttons -->
         <div class="form-buttons">
-          <button type="submit" class="submit-button" :disabled="!isFormValid">Create Floor</button>
+          <button type="submit" class="submit-button" :disabled="!isFormValid || isSubmitting">
+            {{ isSubmitting ? 'Creating…' : 'Create Floor' }}
+          </button>
           <button type="button" @click="resetForm" class="reset-form-button">Reset Form</button>
         </div>
 
@@ -108,23 +110,21 @@
           {{ submitMessage.text }}
         </div>
       </form>
-
-      <!-- JSON Preview -->
-      <div class="json-preview">
-        <h3 class="json-preview-title">Request Payload (JSON Preview)</h3>
-        <div class="json-content">
-          <pre>{{ JSON.stringify(generatePayload(), null, 2) }}</pre>
-        </div>
-      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
+import { createFloor as apiCreateFloor } from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['create-floor', 'back'])
+
+// Props
+const props = defineProps({
+  mapId: { type: Number, default: 1 },
+})
 
 // Form data
 const formData = ref({
@@ -132,11 +132,12 @@ const formData = ref({
   number: 1,
   dimensionX: 10,
   dimensionY: 10,
-  mapId: 1, // Assume mapId is 1
+  mapId: props.mapId,
 })
 
 // Submission message
 const submitMessage = ref(null)
+const isSubmitting = ref(false)
 
 // Validate form
 const isFormValid = computed(() => {
@@ -150,43 +151,43 @@ const isFormValid = computed(() => {
   )
 })
 
-// Generate API payload
-const generatePayload = () => {
-  return {
-    name: formData.value.name,
-    number: formData.value.number,
-    dimensionX: formData.value.dimensionX,
-    dimensionY: formData.value.dimensionY,
-    mapId: formData.value.mapId,
-  }
-}
-
 // Submit form
-const submitForm = () => {
-  if (!isFormValid.value) return
+const submitForm = async () => {
+  if (!isFormValid.value || isSubmitting.value) return
+  isSubmitting.value = true
+  submitMessage.value = null
 
-  // Simulate API call
-  // In actual implementation, this would call POST /api/floor
-  const payload = generatePayload()
+  try {
+    const created = await apiCreateFloor({
+      name: formData.value.name,
+      number: formData.value.number,
+      dimensionX: formData.value.dimensionX,
+      dimensionY: formData.value.dimensionY,
+      mapId: formData.value.mapId,
+    })
 
-  // Emit event with floor data
-  emit('create-floor', payload)
+    // Notify parent with real API response
+    emit('create-floor', created)
 
-  // Show success message
-  submitMessage.value = {
-    type: 'success',
-    text: `✓ Floor "${formData.value.name}" created successfully! (Ready to send to backend)`,
+    submitMessage.value = {
+      type: 'success',
+      text: `✓ Floor "${created.name}" (id: ${created.id}) created successfully`,
+    }
+
+    // Optionally reset the form after a short delay
+    setTimeout(() => {
+      resetForm()
+    }, 1200)
+  } catch (err) {
+    const msg = err && err.message ? err.message : 'Failed to create floor'
+    submitMessage.value = { type: 'error', text: `✕ ${msg}` }
+  } finally {
+    // Clear message after a while
+    setTimeout(() => {
+      submitMessage.value = null
+    }, 3500)
+    isSubmitting.value = false
   }
-
-  // Clear message after 3 seconds
-  setTimeout(() => {
-    submitMessage.value = null
-  }, 3000)
-
-  // Reset form
-  setTimeout(() => {
-    resetForm()
-  }, 1500)
 }
 
 // Reset form
@@ -196,7 +197,7 @@ const resetForm = () => {
     number: 1,
     dimensionX: 10,
     dimensionY: 10,
-    mapId: 1,
+    mapId: props.mapId,
   }
   submitMessage.value = null
 }

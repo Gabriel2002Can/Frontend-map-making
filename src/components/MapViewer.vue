@@ -134,142 +134,110 @@
         </div>
       </div>
 
-      <!-- Mock Data Info -->
+      <!-- Data Source Info -->
       <div class="mock-data-info">
-        <p class="info-text">ℹ️ Currently using mock data (JSON simulation)</p>
+        <p class="info-text">ℹ️ Data is loaded from the backend API</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted } from 'vue'
+import {
+  getMaps,
+  createMap as apiCreateMap,
+  deleteMap as apiDeleteMap,
+  deleteFloor as apiDeleteFloor,
+} from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['create-floor', 'edit-floor', 'create-map'])
 
-// Reactive data
-const maps = ref([
-  {
-    id: 1,
-    name: 'Office Building',
-    numberOfFloors: 2,
-    floors: [
-      {
-        id: 1,
-        name: 'Ground Floor',
-        number: 0,
-        dimensionX: 15,
-        dimensionY: 12,
-        mapId: 1,
-        cells: [
-          { id: 1, x: 1, y: 1, isFilled: false, floorId: 1 },
-          { id: 2, x: 2, y: 2, isFilled: true, floorId: 1 },
-        ],
-      },
-      {
-        id: 2,
-        name: 'First Floor',
-        number: 1,
-        dimensionX: 15,
-        dimensionY: 12,
-        mapId: 1,
-        cells: [{ id: 5, x: 1, y: 1, isFilled: true, floorId: 2 }],
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Hospital Complex',
-    numberOfFloors: 1,
-    floors: [
-      {
-        id: 3,
-        name: 'Main Floor',
-        number: 0,
-        dimensionX: 20,
-        dimensionY: 15,
-        mapId: 2,
-        cells: [],
-      },
-    ],
-  },
-])
+// Reactive state
+const maps = ref([])
+const loading = ref(false)
+const error = ref(null)
 
-// Editing state
-const editingMapId = ref(null)
-const editingMapName = ref('')
-const editingFloorId = ref(null)
-const editingFloorData = ref({
-  name: '',
-  number: 0,
-})
-
-// Methods
-
-// Create new map
-const createNewMap = () => {
-  const newMap = {
-    id: Math.max(...maps.value.map((m) => m.id || 0)) + 1,
-    name: `New Map ${maps.value.length + 1}`,
-    numberOfFloors: 0,
-    floors: [],
-  }
-  maps.value.push(newMap)
-}
-
-// Start editing map name
-const startEditMap = (map) => {
-  editingMapId.value = map.id
-  editingMapName.value = map.name
-}
-
-// Save map name
-const saveMapName = (mapId) => {
-  const map = maps.value.find((m) => m.id === mapId)
-  if (map && editingMapName.value.trim()) {
-    map.name = editingMapName.value.trim()
-  }
-  editingMapId.value = null
-  editingMapName.value = ''
-}
-
-// Cancel map edit
-const cancelMapEdit = () => {
-  editingMapId.value = null
-  editingMapName.value = ''
-}
-
-// Delete map
-const deleteMap = (mapId) => {
-  if (confirm('Are you sure you want to delete this map?')) {
-    const index = maps.value.findIndex((m) => m.id === mapId)
-    if (index !== -1) {
-      maps.value.splice(index, 1)
-    }
+// Fetch maps from API
+async function fetchMaps() {
+  loading.value = true
+  error.value = null
+  try {
+    maps.value = await getMaps()
+  } catch (err) {
+    console.error('Failed to fetch maps:', err)
+    error.value = err?.message || 'Failed to load maps'
+  } finally {
+    loading.value = false
   }
 }
 
-// Create new floor
+onMounted(fetchMaps)
+
+// Map actions
+const createNewMap = async () => {
+  const name = prompt('Enter a name for the new map')
+  if (!name || !name.trim()) return
+  try {
+    await apiCreateMap(name.trim())
+    await fetchMaps()
+  } catch (err) {
+    alert(err?.message || 'Failed to create map')
+  }
+}
+
+const deleteMap = async (mapId) => {
+  if (!confirm('Are you sure you want to delete this map?')) return
+  try {
+    await apiDeleteMap(mapId)
+    await fetchMaps()
+  } catch (err) {
+    alert(err?.message || 'Failed to delete map')
+  }
+}
+
+const deleteFloor = async (mapId, floorId) => {
+  if (!confirm('Are you sure you want to delete this floor?')) return
+  try {
+    await apiDeleteFloor(floorId)
+    await fetchMaps()
+  } catch (err) {
+    alert(err?.message || 'Failed to delete floor')
+  }
+}
+
+// Create new floor (open form in parent)
 const createFloor = (map) => {
-  console.log('Creating floor for map:', map.id)
   emit('create-floor', map)
 }
 
 // Edit floor (grid)
 const editFloor = (floor) => {
-  console.log('Editing floor grid:', floor.id)
   emit('edit-floor', floor)
 }
 
-// Start editing floor info
-const startEditFloor = (floor) => {
-  editingFloorId.value = floor.id
-  editingFloorData.value = {
-    name: floor.name,
-    number: floor.number,
-  }
+// Map name editing (local only)
+const editingMapId = ref(null)
+const editingMapName = ref('')
+const startEditMap = (map) => {
+  editingMapId.value = map.id
+  editingMapName.value = map.name
 }
+const saveMapName = (mapId) => {
+  const map = maps.value.find((m) => m.id === mapId)
+  if (map) {
+    map.name = editingMapName.value.trim() || map.name
+  }
+  editingMapId.value = null
+  editingMapName.value = ''
+}
+const cancelMapEdit = () => {
+  editingMapId.value = null
+  editingMapName.value = ''
+}
+
+// Floor info editing (local only) - handled above
 
 // Save floor edit
 const saveFloorEdit = (floorId) => {
@@ -290,19 +258,7 @@ const cancelFloorEdit = () => {
   editingFloorData.value = { name: '', number: 0 }
 }
 
-// Delete floor
-const deleteFloor = (mapId, floorId) => {
-  if (confirm('Are you sure you want to delete this floor?')) {
-    const map = maps.value.find((m) => m.id === mapId)
-    if (map) {
-      const index = map.floors.findIndex((f) => f.id === floorId)
-      if (index !== -1) {
-        map.floors.splice(index, 1)
-        map.numberOfFloors = map.floors.length
-      }
-    }
-  }
-}
+// Delete floor handled via API above
 
 // Add new floor to map
 const addFloorToMap = (mapId, floorData) => {
