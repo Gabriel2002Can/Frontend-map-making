@@ -130,7 +130,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { getFloorById } from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['save-cells', 'back'])
@@ -150,9 +151,23 @@ const actionMessage = ref(null)
 const filledCellsData = ref([])
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
-// Initialize filled cells from props
+// Initialize filled cells from props (fallback)
 if (props.floor.cells && Array.isArray(props.floor.cells)) {
   filledCellsData.value = props.floor.cells.filter((cell) => cell.isFilled)
+}
+
+// Load filled cells from API to ensure we show the persisted state
+const loadInitialCells = async () => {
+  try {
+    const fullFloor = await getFloorById(props.floor.id)
+    if (fullFloor && Array.isArray(fullFloor.cells)) {
+      filledCellsData.value = fullFloor.cells
+        .filter((c) => c.isFilled)
+        .map((c) => ({ x: c.x, y: c.y, isFilled: true }))
+    }
+  } catch (err) {
+    console.error('Failed to load floor cells:', err)
+  }
 }
 
 // Listen to window size
@@ -164,7 +179,17 @@ const handleResize = () => {
 
 onMounted(() => {
   window.addEventListener('resize', handleResize)
+  // Fetch latest cells for this floor
+  loadInitialCells()
 })
+
+// If the floor ID changes while this component is mounted, reload cells
+watch(
+  () => props.floor.id,
+  () => {
+    loadInitialCells()
+  },
+)
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
