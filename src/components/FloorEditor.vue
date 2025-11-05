@@ -108,8 +108,13 @@
 
       <!-- Bottom Buttons -->
       <div class="editor-footer">
-        <button @click="saveChanges" class="save-button" :disabled="filledCells.length === 0">
-          Save Changes
+        <button
+          @click="saveChanges"
+          class="save-button"
+          :disabled="isSaving || filledCells.length === 0"
+        >
+          <span v-if="isSaving">Saving...</span>
+          <span v-else>Save Changes</span>
         </button>
         <button @click="goBack" class="cancel-button">Go Back</button>
       </div>
@@ -140,6 +145,7 @@ const props = defineProps({
 
 // Reactive data
 const zoomLevel = ref(1)
+const isSaving = ref(false)
 const actionMessage = ref(null)
 const filledCellsData = ref([])
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
@@ -335,6 +341,7 @@ const saveChanges = () => {
     return
   }
 
+  isSaving.value = true
   const payload = generatePayload()
   emit('save-cells', payload)
   showMessage('✓ Changes saved!', 'success')

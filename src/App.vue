@@ -30,6 +30,7 @@ import { ref } from 'vue'
 import MapViewer from './components/MapViewer.vue'
 import FloorForm from './components/FloorForm.vue'
 import FloorEditor from './components/FloorEditor.vue'
+import { updateCells as apiUpdateCells } from '@/api/backend'
 
 // Reactive data
 
@@ -91,23 +92,19 @@ const handleCreateFloor = (floorData) => {
 }
 
 // Handle saving cells
-const handleSaveCells = (cellsPayload) => {
+const handleSaveCells = async (cellsPayload) => {
   console.log('Cells saved with payload:', cellsPayload)
 
-  // Call MapViewer method to update cells
-  if (mapViewerRef.value) {
-    mapViewerRef.value.updateFloorCells(cellsPayload.floorId, cellsPayload.cells)
+  try {
+    // Persist to backend
+    await apiUpdateCells(cellsPayload)
+  } catch (err) {
+    console.error('Failed to update cells:', err)
+    alert(err?.message || 'Failed to save cells')
+    // Still navigate back to viewer to avoid trapping user; remove if undesired
   }
 
-  // Here you can add API call
-  // POST /api/cell/update with cellsPayload
-  // const response = await fetch('https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net/api/cell/update', {
-  //   method: 'POST',
-  //   headers: { 'Content-Type': 'application/json' },
-  //   body: JSON.stringify(cellsPayload)
-  // });
-
-  // Go back to viewer
+  // Navigate back to viewer; MapViewer will refetch from API on mount
   goToViewer()
 }
 </script>
