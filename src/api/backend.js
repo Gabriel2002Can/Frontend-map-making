@@ -16,9 +16,16 @@
  * Base URL of the backend API.
  * You can override via Vite env (VITE_BACKEND_URL) if needed.
  */
+
+// AZURE API Temp disabled
+// export const BASE_URL =
+//   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
+//   'https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net'
+
+// Using LocalHost as backend for now.
 export const BASE_URL =
   (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_BACKEND_URL) ||
-  'https://backend-map-frd3e5bch9bvgjef.canadacentral-01.azurewebsites.net'
+  'https://localhost:7219'
 
 /**
  * Join base URL and a path safely (avoids double slashes).
