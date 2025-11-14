@@ -51,6 +51,13 @@
                   >
                     ✎
                   </button>
+                  <router-link
+                    :to="{ name: 'map', params: { id: map.id } }"
+                    class="action-btn"
+                    title="Open map page"
+                  >
+                    ↗
+                  </router-link>
                   <button
                     @click="deleteMap(map.id)"
                     class="action-btn delete-btn"
@@ -140,22 +147,36 @@
       </div>
     </div>
   </div>
+  <!-- Inline floor editor (single-map mode) -->
+  <div v-if="activeFloor" class="inline-editor">
+    <FloorEditor :floor="activeFloor" @save-cells="onSaveCells" @back="closeFloorEditor" />
+  </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
 import {
   getMaps,
+  getMapById,
+  getFloorById,
   createMap as apiCreateMap,
   deleteMap as apiDeleteMap,
   deleteFloor as apiDeleteFloor,
+  updateCells as apiUpdateCells,
 } from '@/api/backend'
+import FloorEditor from '@/components/FloorEditor.vue'
 
 // Define emitted events
 const emit = defineEmits(['create-floor', 'edit-floor', 'create-map'])
 
+// Props
+const props = defineProps({
+  mapId: { type: [Number, String], default: null },
+})
+
 // Reactive state
 const maps = ref([])
+const activeFloor = ref(null)
 const loading = ref(false)
 const error = ref(null)
 
@@ -164,7 +185,12 @@ async function fetchMaps() {
   loading.value = true
   error.value = null
   try {
-    maps.value = await getMaps()
+    if (props.mapId) {
+      const map = await getMapById(Number(props.mapId))
+      maps.value = map ? [map] : []
+    } else {
+      maps.value = await getMaps()
+    }
   } catch (err) {
     console.error('Failed to fetch maps:', err)
     error.value = err?.message || 'Failed to load maps'
@@ -213,8 +239,36 @@ const createFloor = (map) => {
 }
 
 // Edit floor (grid)
-const editFloor = (floor) => {
+const editFloor = async (floor) => {
+  // If MapViewer is showing a single map (mapId prop), open inline editor using API
+  if (props.mapId) {
+    try {
+      const fullFloor = await getFloorById(floor.id)
+      activeFloor.value = fullFloor
+    } catch (err) {
+      alert(err?.message || 'Failed to load floor')
+    }
+    return
+  }
+
+  // otherwise delegate to parent
   emit('edit-floor', floor)
+}
+
+const closeFloorEditor = () => {
+  activeFloor.value = null
+}
+
+const onSaveCells = async (payload) => {
+  try {
+    await apiUpdateCells(payload)
+    // refresh maps (or single map)
+    await fetchMaps()
+    // if inline editor open, close it
+    activeFloor.value = null
+  } catch (err) {
+    alert(err?.message || 'Failed to save cells')
+  }
 }
 
 // Map name editing (local only)

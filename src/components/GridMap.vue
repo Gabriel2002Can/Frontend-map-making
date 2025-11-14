@@ -63,7 +63,7 @@
           </div>
 
           <div class="control-buttons">
-            <!-- Zoom Controls -->
+            <!-- Zoom Controls (always available even in read-only view) -->
             <div class="zoom-controls">
               <button @click="zoomOut" class="zoom-button" :disabled="zoomLevel <= 0.5">
                 <span>−</span>
@@ -74,21 +74,23 @@
               </button>
             </div>
 
-            <!-- Action Buttons -->
-            <button @click="fillAll" class="action-button fill-all">Fill All</button>
-            <button @click="clearAll" class="action-button clear-all">Clear All</button>
-            <button v-if="props.floorId == null" @click="resetGrid" class="reset-button">
-              Change Size
-            </button>
-            <button
-              v-else
-              @click="saveChanges"
-              class="action-button"
-              :disabled="isSaving"
-              style="background-color: #8b5cf6"
-            >
-              {{ isSaving ? 'Saving…' : 'Save Changes' }}
-            </button>
+            <!-- Action Buttons (hidden in readOnly mode) -->
+            <div v-if="!props.readOnly" class="actions-right">
+              <button @click="fillAll" class="action-button fill-all">Fill All</button>
+              <button @click="clearAll" class="action-button clear-all">Clear All</button>
+              <button v-if="props.floorId == null" @click="resetGrid" class="reset-button">
+                Change Size
+              </button>
+              <button
+                v-else
+                @click="saveChanges"
+                class="action-button"
+                :disabled="isSaving"
+                style="background-color: #8b5cf6"
+              >
+                {{ isSaving ? 'Saving…' : 'Save Changes' }}
+              </button>
+            </div>
           </div>
         </div>
 
@@ -115,8 +117,10 @@
               v-for="(cell, index) in allCells"
               :key="index"
               :class="['grid-cell', cell.filled ? 'grid-cell-filled' : 'grid-cell-empty']"
-              @click="toggleCell(cell)"
+              @click="!props.readOnly && toggleCell(cell)"
               :title="`Cell (${cell.x}, ${cell.y})`"
+              :aria-disabled="props.readOnly"
+              :style="props.readOnly ? { cursor: 'default' } : {}"
             >
               {{ cell.x }},{{ cell.y }}
             </div>
@@ -157,9 +161,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { getFloorById, updateCells } from '@/api/backend'
 
-// Props (optional floorId enables API mode)
+// Props (optional floorId enables API mode). Added `readOnly` to allow view-only mode.
 const props = defineProps({
   floorId: { type: Number, default: null },
+  readOnly: { type: Boolean, default: false },
 })
 
 // Input dimensions
@@ -270,6 +275,7 @@ const clearAll = () => {
 
 // Save changes to API (only in API mode)
 const saveChanges = async () => {
+  if (props.readOnly) return
   if (props.floorId == null || isSaving.value) return
   isSaving.value = true
   actionMessage.value = ''
