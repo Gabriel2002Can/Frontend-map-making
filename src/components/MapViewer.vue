@@ -45,6 +45,13 @@
                 <h3 class="map-name">{{ map.name }}</h3>
                 <div class="map-actions-header">
                   <button
+                    @click="$router.push('/maps/' + map.id)"
+                    class="action-btn"
+                    title="View map"
+                  >
+                    View
+                  </button>
+                  <button
                     @click="startEditMap(map)"
                     class="action-btn edit-btn"
                     title="Edit map name"
