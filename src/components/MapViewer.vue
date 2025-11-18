@@ -83,7 +83,7 @@
               </div>
 
               <div v-else class="floors-items">
-                <div v-for="floor in map.floors" :key="floor.id" class="floor-item">
+                <div v-for="floor in getSortedFloors(map.floors)" :key="floor.id" class="floor-item">
                   <!-- Floor Edit Mode -->
                   <div v-if="editingFloorId === floor.id" class="floor-edit">
                     <input
@@ -304,6 +304,12 @@ const updateFloorCells = (floorId, cellsData) => {
       return floor
     }
   }
+}
+
+// Sort floors by number
+const getSortedFloors = (floors) => {
+  if (!floors || floors.length === 0) return []
+  return [...floors].sort((a, b) => a.number - b.number)
 }
 
 // Define available methods for external calls

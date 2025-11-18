@@ -123,8 +123,12 @@ const emit = defineEmits(['create-floor', 'back'])
 
 // Props
 const props = defineProps({
-  mapId: { type: Number, default: 1 },
+  mapId: { type: Number, default: null },
 })
+
+const generateTempMapId = () => {
+  return Date.now()
+}
 
 // Form data
 const formData = ref({
@@ -132,7 +136,7 @@ const formData = ref({
   number: 1,
   dimensionX: 10,
   dimensionY: 10,
-  mapId: props.mapId,
+  mapId: props.mapId || generateTempMapId(),
 })
 
 // Submission message
