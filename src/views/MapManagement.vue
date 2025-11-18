@@ -11,6 +11,7 @@
     <!-- Show Floor Form -->
     <FloorForm
       v-else-if="currentPage === 'createFloor'"
+      :mapId="currentMapId"
       @create-floor="handleCreateFloor"
       @back="goToViewer"
     />

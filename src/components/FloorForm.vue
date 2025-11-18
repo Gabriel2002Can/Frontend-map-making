@@ -123,12 +123,10 @@ const emit = defineEmits(['create-floor', 'back'])
 
 // Props
 const props = defineProps({
-  mapId: { type: Number, default: null },
+  mapId: { type: Number, required: true },
 })
 
-const generateTempMapId = () => {
-  return Date.now()
-}
+
 
 // Form data
 const formData = ref({
@@ -136,7 +134,7 @@ const formData = ref({
   number: 1,
   dimensionX: 10,
   dimensionY: 10,
-  mapId: props.mapId || generateTempMapId(),
+  //mapId: props.mapId || generateTempMapId(),
 })
 
 // Submission message
@@ -167,7 +165,7 @@ const submitForm = async () => {
       number: formData.value.number,
       dimensionX: formData.value.dimensionX,
       dimensionY: formData.value.dimensionY,
-      mapId: formData.value.mapId,
+      mapId: props.mapId,
     })
 
     // Notify parent with real API response
