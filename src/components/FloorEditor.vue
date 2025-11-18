@@ -64,9 +64,9 @@
               :key="`${cell.x}-${cell.y}`"
               :class="['grid-cell', cell.isFilled ? 'grid-cell-filled' : 'grid-cell-empty']"
               @click="toggleCell(cell)"
-              :title="`(${cell.x}, ${cell.y})`"
+              :title="`(${cell.x+1}, ${cell.y+1})`"
             >
-              <span class="cell-text">{{ cell.x }},{{ cell.y }}</span>
+              <span class="cell-text">{{ cell.x+1 }},{{ cell.y+1 }}</span>
             </div>
           </div>
         </div>
@@ -87,7 +87,7 @@
                   class="cell-tag"
                   @click="removeCell(cell)"
                 >
-                  ({{ cell.x }}, {{ cell.y }}) ✕
+                  ({{ cell.x+1 }}, {{ cell.y+1 }}) ✕
                 </span>
               </div>
             </div>
@@ -116,7 +116,7 @@
         <button
           @click="saveChanges"
           class="save-button"
-          :disabled="isSaving || filledCells.length === 0"
+          :disabled="isSaving"
         >
           <span v-if="isSaving">Saving...</span>
           <span v-else>Save Changes</span>
@@ -228,8 +228,8 @@ const allCells = computed(() => {
   const cells = []
   const filledMap = new Map(filledCells.value.map((cell) => [`${cell.x}-${cell.y}`, true]))
 
-  for (let y = 1; y <= props.floor.dimensionY; y++) {
-    for (let x = 1; x <= props.floor.dimensionX; x++) {
+  for (let y = 0; y < props.floor.dimensionY; y++) {
+    for (let x = 0; x < props.floor.dimensionX; x++) {
       cells.push({
         x,
         y,
@@ -328,8 +328,8 @@ const removeCell = (cell) => {
 const fillAll = () => {
   if (isLoadingCells.value) return
   filledCellsData.value = []
-  for (let y = 1; y <= props.floor.dimensionY; y++) {
-    for (let x = 1; x <= props.floor.dimensionX; x++) {
+  for (let y = 0; y < props.floor.dimensionY; y++) {
+    for (let x = 0; x < props.floor.dimensionX; x++) {
       filledCellsData.value.push({
         x,
         y,
@@ -363,21 +363,32 @@ const zoomOut = () => {
 }
 
 const generatePayload = () => {
+  // Create full list of cells with filled status
+  const allCellsWithStatus = []
+  const filledMap = new Map(filledCells.value.map((c) => [`${c.x}-${c.y}`, true]))
+
+  // Generate full grid with filled status
+  for (let y = 0; y < props.floor.dimensionY; y++) {
+    for (let x = 0; x < props.floor.dimensionX; x++) {
+      allCellsWithStatus.push({
+        x,
+        y,
+        isFilled: filledMap.has(`${x}-${y}`)
+      })
+    }
+  }
+
   return {
     floorId: props.floor.id,
-    cells: filledCells.value.map((cell) => ({
-      x: cell.x,
-      y: cell.y,
-      isFilled: true,
-    })),
+    cells: allCellsWithStatus
   }
 }
 
 const saveChanges = () => {
-  if (filledCells.value.length === 0) {
+  /*if (filledCells.value.length === 0) {
     showMessage('Please fill at least one cell', 'error')
     return
-  }
+  }*/
 
   isSaving.value = true
   const payload = generatePayload()

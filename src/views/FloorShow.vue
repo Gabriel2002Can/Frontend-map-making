@@ -50,8 +50,8 @@ const allCells = computed(() => {
   const filledMap = new Map(
     (floor.value.cells || []).filter((c) => c.isFilled).map((c) => [`${c.x}-${c.y}`, true]),
   )
-  for (let y = 1; y <= floor.value.dimensionY; y++) {
-    for (let x = 1; x <= floor.value.dimensionX; x++) {
+  for (let y = 0; y < floor.value.dimensionY; y++) {
+    for (let x = 0; x < floor.value.dimensionX; x++) {
       cells.push({ x, y, isFilled: !!filledMap.get(`${x}-${y}`) })
     }
   }

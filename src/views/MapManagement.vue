@@ -31,7 +31,7 @@ import { ref } from 'vue'
 import MapViewer from '@/components/MapViewer.vue'
 import FloorForm from '@/components/FloorForm.vue'
 import FloorEditor from '@/components/FloorEditor.vue'
-import { updateCells as apiUpdateCells } from '@/api/backend'
+import { updateCells as apiUpdateCells,getFloorById } from '@/api/backend'
 
 // Reactive data
 
@@ -65,10 +65,21 @@ const goToCreateFloor = (map) => {
 }
 
 // Navigate to Edit Floor
-const goToEditFloor = (floor) => {
-  console.log('Navigate to edit floor:', floor)
-  selectedFloor.value = floor
-  currentPage.value = 'editFloor'
+const goToEditFloor = async (floor) => {
+  console.log('=== Navigate to Edit Floor ===')
+  console.log('Floor ID:', floor.id)
+
+  try {
+    // Fetch latest floor data from API
+    console.log('Loading latest floor data from API...')
+    selectedFloor.value = await getFloorById(floor.id)
+    console.log('Latest floor data loaded')
+
+    currentPage.value = 'editFloor'
+  } catch (err) {
+    console.error('Failed to load floor:', err)
+    alert('Failed to load floor: ' + err.message)
+  }
 }
 
 // Handle floor creation
@@ -86,11 +97,25 @@ const handleCreateFloor = (floorData) => {
 
 // Handle saving cells
 const handleSaveCells = async (cellsPayload) => {
-  console.log('Cells saved with payload:', cellsPayload)
+  console.log('=== Handle Save Cells ===')
+  console.log('Payload:', cellsPayload)
+  console.log('Floor ID:', cellsPayload.floorId)
+  console.log('Cells count:', cellsPayload.cells.length)
 
   try {
     // Persist to backend
     await apiUpdateCells(cellsPayload)
+    console.log('Cells saved to backend successfully')
+
+    // Refresh selected floor data if currently editing
+    if (selectedFloor.value && selectedFloor.value.id === cellsPayload.floorId) {
+      console.log('Reloading floor data...')
+      const updatedFloor = await getFloorById(cellsPayload.floorId)
+      selectedFloor.value = updatedFloor
+      console.log('Floor data reloaded:', updatedFloor)
+      console.log('Updated cells count:', updatedFloor.cells?.length || 0)
+    }
+     alert('Changes saved successfully!')
   } catch (err) {
     console.error('Failed to update cells:', err)
     alert(err?.message || 'Failed to save cells')
