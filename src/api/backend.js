@@ -180,6 +180,24 @@ export async function deleteMap(id) {
   return true
 }
 
+/**
+ * PUT /api/map/UpdateMap/{id}
+ * @param {number} id
+ * @param {string} newName
+ * @returns {Promise<boolean>} true on success
+ */
+export async function editMap(id, newName) {
+  if (id == null) throw new Error('editMap: id is required')
+  if (!newName || !newName.trim()) throw new Error('editMap: newName is required')
+
+  await http(withBase(`api/map/UpdateMap/${encodeURIComponent(id)}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name: newName.trim() }),
+  })
+  return true
+}
+
 // ===== Floor endpoints =====
 
 /**
@@ -214,6 +232,23 @@ export function createFloor(dto) {
 export async function deleteFloor(floorId) {
   if (floorId == null) throw new Error('deleteFloor: floorId is required')
   await http(withBase(`/api/floor/${encodeURIComponent(floorId)}`), { method: 'DELETE' })
+  return true
+}
+
+/** PUT /api/floor/{floorId}
+ * @param {number} floorId
+ * @param {FloorDTO} dto
+ * @returns {Promise<boolean>} true on success
+ */
+export async function editFloor(floorId, dto) {
+  if (floorId == null) throw new Error('editFloor: floorId is required')
+  if (!dto) throw new Error('editFloor: dto is required')
+
+  await http(withBase(`api/floor/${encodeURIComponent(floorId)}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+  })
   return true
 }
 
