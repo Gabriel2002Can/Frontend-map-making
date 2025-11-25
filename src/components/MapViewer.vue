@@ -83,7 +83,11 @@
               </div>
 
               <div v-else class="floors-items">
-                <div v-for="floor in getSortedFloors(map.floors)" :key="floor.id" class="floor-item">
+                <div
+                  v-for="floor in getSortedFloors(map.floors)"
+                  :key="floor.id"
+                  class="floor-item"
+                >
                   <!-- Floor Edit Mode -->
                   <div v-if="editingFloorId === floor.id" class="floor-edit">
                     <input
@@ -153,6 +157,7 @@
 import { ref, onMounted } from 'vue'
 import {
   getMaps,
+  editMap,
   createMap as apiCreateMap,
   deleteMap as apiDeleteMap,
   deleteFloor as apiDeleteFloor,
@@ -224,21 +229,40 @@ const editFloor = (floor) => {
   emit('edit-floor', floor)
 }
 
-// Map name editing (local only)
+// Map name editing
 const editingMapId = ref(null)
 const editingMapName = ref('')
+
 const startEditMap = (map) => {
   editingMapId.value = map.id
   editingMapName.value = map.name
 }
-const saveMapName = (mapId) => {
+
+const saveMapName = async (mapId) => {
   const map = maps.value.find((m) => m.id === mapId)
   if (map) {
-    map.name = editingMapName.value.trim() || map.name
+    const trimmedName = editingMapName.value.trim()
+
+    if (!trimmedName) {
+      alert('Map name cannot be empty')
+      return
+    }
+
+    map.name = trimmedName
+
+    const dto = { newName: trimmedName }
+
+    // call API to save map name
+    try {
+      await editMap(mapId, dto)
+    } catch (err) {
+      alert(err?.message || 'Failed to update map name')
+    }
   }
   editingMapId.value = null
   editingMapName.value = ''
 }
+
 const cancelMapEdit = () => {
   editingMapId.value = null
   editingMapName.value = ''
@@ -247,23 +271,23 @@ const cancelMapEdit = () => {
 // Floor info editing (local only) - handled above
 
 // Save floor edit
-const saveFloorEdit = (floorId) => {
-  for (const map of maps.value) {
-    const floor = map.floors.find((f) => f.id === floorId)
-    if (floor) {
-      floor.name = editingFloorData.value.name.trim() || floor.name
-      floor.number = editingFloorData.value.number
-      editingFloorId.value = null
-      return
-    }
-  }
-}
+// const saveFloorEdit = (floorId) => {
+//   for (const map of maps.value) {
+//     const floor = map.floors.find((f) => f.id === floorId)
+//     if (floor) {
+//       floor.name = editingFloorData.value.name.trim() || floor.name
+//       floor.number = editingFloorData.value.number
+//       editingFloorId.value = null
+//       return
+//     }
+//   }
+// }
 
-// Cancel floor edit
-const cancelFloorEdit = () => {
-  editingFloorId.value = null
-  editingFloorData.value = { name: '', number: 0 }
-}
+// // Cancel floor edit
+// const cancelFloorEdit = () => {
+//   editingFloorId.value = null
+//   editingFloorData.value = { name: '', number: 0 }
+// }
 
 // Delete floor handled via API above
 
