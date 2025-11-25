@@ -102,7 +102,7 @@
 
         <!-- Validation Message -->
         <p v-if="!isFormValid" class="validation-error">
-          ⚠️ Please fill all required fields and ensure dimensions are between 1-50
+          ⚠️ Please fill all required fields and ensure dimensions are between -20 and 50
         </p>
 
         <!-- Submission Result -->
@@ -126,8 +126,6 @@ const props = defineProps({
   mapId: { type: Number, required: true },
 })
 
-
-
 // Form data
 const formData = ref({
   name: '',
@@ -145,7 +143,8 @@ const isSubmitting = ref(false)
 const isFormValid = computed(() => {
   return (
     formData.value.name.trim() !== '' &&
-    formData.value.number > 0 &&
+    formData.value.number > -20 &&
+    formData.value.number < 50 &&
     formData.value.dimensionX >= 1 &&
     formData.value.dimensionX <= 50 &&
     formData.value.dimensionY >= 1 &&
