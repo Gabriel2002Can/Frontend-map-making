@@ -38,6 +38,8 @@ const load = async () => {
     console.error('Failed to load map:', err)
     map.value = null
   }
+
+  map.value.floors = map.value.floors.sort((a, b) => a.number - b.number)
 }
 
 onMounted(load)

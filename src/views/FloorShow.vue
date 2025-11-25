@@ -9,15 +9,12 @@
         <p>Floor #: {{ floor.number }}</p>
         <p>Size: {{ floor.dimensionX }} × {{ floor.dimensionY }}</p>
       </div>
-
       <div v-if="floor" class="grid-wrapper" :style="gridStyle">
         <div
           v-for="cell in allCells"
           :key="`${cell.x}-${cell.y}`"
           :class="['cell', cell.isFilled ? 'filled' : 'empty']"
-        >
-          <!-- keep minimal content for readability -->
-        </div>
+        ></div>
       </div>
     </div>
   </div>
@@ -61,7 +58,6 @@ const allCells = computed(() => {
 const gridStyle = computed(() => {
   if (!floor.value) return {}
   const cols = floor.value.dimensionX || 1
-  // fixed cell size to match CSS .cell width/height
   const size = 24
   return {
     gridTemplateColumns: `repeat(${cols}, ${size}px)`,

@@ -57,19 +57,15 @@
       <transition name="slide-down">
         <div v-if="selectedArea.size > 0" class="selection-control-panel">
           <div class="selection-info">
-            <span class="selection-text">Selected Area: <strong>{{ selectedArea.size }}</strong> cells</span>
+            <span class="selection-text"
+              >Selected Area: <strong>{{ selectedArea.size }}</strong> cells</span
+            >
             <span class="selection-hint">Click again on selected cells to remove them</span>
           </div>
           <div class="selection-actions">
-            <button @click="fillSelectedArea" class="action-btn fill-btn">
-              Fill Area
-            </button>
-            <button @click="clearSelectedArea" class="action-btn clear-btn">
-              Clear Area
-            </button>
-            <button @click="cancelSelection" class="action-btn cancel-btn">
-              Cancel
-            </button>
+            <button @click="fillSelectedArea" class="action-btn fill-btn">Fill Area</button>
+            <button @click="clearSelectedArea" class="action-btn clear-btn">Clear Area</button>
+            <button @click="cancelSelection" class="action-btn cancel-btn">Cancel</button>
           </div>
         </div>
       </transition>
@@ -79,16 +75,21 @@
         <!-- Grid -->
         <div class="grid-wrapper">
           <div v-if="isLoadingCells" class="loading-overlay">Loading cells…</div>
-          <div class="grid-container" :style="gridStyle" @mouseleave="handleMouseLeave" @mouseup="handleMouseUp">
+          <div
+            class="grid-container"
+            :style="gridStyle"
+            @mouseleave="handleMouseLeave"
+            @mouseup="handleMouseUp"
+          >
             <div
               v-for="cell in allCells"
               :key="`${cell.x}-${cell.y}`"
               :class="getCellClass(cell)"
               @mousedown="handleMouseDown(cell, $event)"
               @mouseenter="handleMouseEnter(cell)"
-              :title="`(${cell.x+1}, ${cell.y+1})`"
+              :title="`(${cell.x + 1}, ${cell.y + 1})`"
             >
-            <span class="cell-text">{{ cell.x+1 }},{{ cell.y+1 }}</span>
+              <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
             </div>
           </div>
         </div>
@@ -109,17 +110,9 @@
                   class="cell-tag"
                   @click="removeCell(cell)"
                 >
-                  ({{ cell.x+1 }}, {{ cell.y+1 }}) ✕
+                  ({{ cell.x + 1 }}, {{ cell.y + 1 }}) ✕
                 </span>
               </div>
-            </div>
-          </div>
-
-          <!-- JSON Preview -->
-          <div class="json-section">
-            <h3 class="section-title">JSON Payload</h3>
-            <div class="json-output">
-              <pre>{{ JSON.stringify(generatePayload(), null, 2) }}</pre>
             </div>
           </div>
         </div>
@@ -135,11 +128,7 @@
 
       <!-- Bottom Buttons -->
       <div class="editor-footer">
-        <button
-          @click="saveChanges"
-          class="save-button"
-          :disabled="isSaving"
-        >
+        <button @click="saveChanges" class="save-button" :disabled="isSaving">
           <span v-if="isSaving">Saving...</span>
           <span v-else>Save Changes</span>
         </button>
@@ -437,7 +426,7 @@ const handleMouseUp = () => {
       toggleCell(mouseDownCell.value)
     }
   } else if (isDragging.value) {
-    currentDragArea.value.forEach(cellKey => {
+    currentDragArea.value.forEach((cellKey) => {
       if (selectedArea.value.has(cellKey)) {
         selectedArea.value.delete(cellKey)
       } else {
@@ -457,15 +446,13 @@ const handleMouseUp = () => {
   currentDragArea.value.clear()
 }
 
-
-const handleMouseLeave = () => {
-}
+const handleMouseLeave = () => {}
 
 const fillSelectedArea = () => {
   if (selectedArea.value.size === 0) return
 
   let addedCount = 0
-  selectedArea.value.forEach(cellKey => {
+  selectedArea.value.forEach((cellKey) => {
     const [x, y] = cellKey.split('-').map(Number)
     const exists = filledCellsData.value.findIndex((c) => c.x === x && c.y === y)
 
@@ -483,7 +470,7 @@ const clearSelectedArea = () => {
   if (selectedArea.value.size === 0) return
 
   let removedCount = 0
-  selectedArea.value.forEach(cellKey => {
+  selectedArea.value.forEach((cellKey) => {
     const [x, y] = cellKey.split('-').map(Number)
     const index = filledCellsData.value.findIndex((c) => c.x === x && c.y === y)
 
@@ -504,7 +491,6 @@ const cancelSelection = () => {
   isSelecting.value = false
   isDragging.value = false
 }
-
 
 // Methods
 const toggleCell = (cell) => {
@@ -579,14 +565,14 @@ const generatePayload = () => {
       allCellsWithStatus.push({
         x,
         y,
-        isFilled: filledMap.has(`${x}-${y}`)
+        isFilled: filledMap.has(`${x}-${y}`),
       })
     }
   }
 
   return {
     floorId: props.floor.id,
-    cells: allCellsWithStatus
+    cells: allCellsWithStatus,
   }
 }
 
@@ -1002,18 +988,25 @@ const goBack = () => {
   background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
   border-color: #c4b5fd !important;
   color: white !important;
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
+  box-shadow:
+    0 0 20px rgba(139, 92, 246, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
   transform: scale(1.05);
   z-index: 5;
   animation: selecting-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes selecting-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(139, 92, 246, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2);
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(139, 92, 246, 0.6),
+      inset 0 0 10px rgba(255, 255, 255, 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(139, 92, 246, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0 0 30px rgba(139, 92, 246, 0.8),
+      inset 0 0 15px rgba(255, 255, 255, 0.3);
   }
 }
 
@@ -1021,18 +1014,25 @@ const goBack = () => {
   background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
   border-color: #ef4444 !important;
   color: #fca5a5 !important;
-  box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.3) !important;
+  box-shadow:
+    0 0 20px rgba(239, 68, 68, 0.6),
+    inset 0 0 10px rgba(0, 0, 0, 0.3) !important;
   transform: scale(1.05);
   z-index: 5;
   animation: removing-pulse 1.5s ease-in-out infinite;
 }
 
 @keyframes removing-pulse {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(0, 0, 0, 0.3);
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(239, 68, 68, 0.6),
+      inset 0 0 10px rgba(0, 0, 0, 0.3);
   }
   50% {
-    box-shadow: 0 0 30px rgba(239, 68, 68, 0.8), inset 0 0 15px rgba(0, 0, 0, 0.5);
+    box-shadow:
+      0 0 30px rgba(239, 68, 68, 0.8),
+      inset 0 0 15px rgba(0, 0, 0, 0.5);
   }
 }
 
@@ -1040,18 +1040,25 @@ const goBack = () => {
   background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
   border-color: #fdba74 !important;
   color: white !important;
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
+  box-shadow:
+    0 0 20px rgba(249, 115, 22, 0.6),
+    inset 0 0 10px rgba(255, 255, 255, 0.2) !important;
   transform: scale(1.05);
   z-index: 5;
   animation: selecting-pulse-orange 1.5s ease-in-out infinite;
 }
 
 @keyframes selecting-pulse-orange {
-  0%, 100% {
-    box-shadow: 0 0 20px rgba(249, 115, 22, 0.6), inset 0 0 10px rgba(255, 255, 255, 0.2);
+  0%,
+  100% {
+    box-shadow:
+      0 0 20px rgba(249, 115, 22, 0.6),
+      inset 0 0 10px rgba(255, 255, 255, 0.2);
   }
   50% {
-    box-shadow: 0 0 30px rgba(249, 115, 22, 0.8), inset 0 0 15px rgba(255, 255, 255, 0.3);
+    box-shadow:
+      0 0 30px rgba(249, 115, 22, 0.8),
+      inset 0 0 15px rgba(255, 255, 255, 0.3);
   }
 }
 
