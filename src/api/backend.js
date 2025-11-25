@@ -186,14 +186,14 @@ export async function deleteMap(id) {
  * @param {string} newName
  * @returns {Promise<boolean>} true on success
  */
-export async function editMap(id, newName) {
+export async function editMap(id, dto) {
   if (id == null) throw new Error('editMap: id is required')
-  if (!newName || !newName.trim()) throw new Error('editMap: newName is required')
+  if (!dto || !dto.newName || !dto.newName.trim()) throw new Error('editMap: newName is required')
 
-  await http(withBase(`api/map/UpdateMap/${encodeURIComponent(id)}`), {
+  await http(withBase(`/api/map/${encodeURIComponent(id)}`), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: newName.trim() }),
+    body: JSON.stringify(dto),
   })
   return true
 }
@@ -240,7 +240,7 @@ export async function deleteFloor(floorId) {
  * @param {FloorDTO} dto
  * @returns {Promise<boolean>} true on success
  */
-export async function editFloor(floorId, dto) {
+export async function editFloorAll(floorId, dto) {
   if (floorId == null) throw new Error('editFloor: floorId is required')
   if (!dto) throw new Error('editFloor: dto is required')
 
@@ -277,8 +277,10 @@ export default {
   getMapById,
   createMap,
   deleteMap,
+  editMap,
   getFloorById,
   createFloor,
   deleteFloor,
+  editFloorAll,
   updateCells,
 }
