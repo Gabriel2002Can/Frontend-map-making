@@ -151,6 +151,16 @@
             />
           </div>
           <div class="form-group">
+            <label class="form-label">Floor Number</label>
+            <input
+              v-model.number="editingFloorData.number"
+              type="number"
+              class="form-input"
+              placeholder="Enter floor number (optional)"
+              min="0"
+            />
+          </div>
+          <div class="form-group">
             <label class="form-label">X Dimension</label>
             <input
               v-model.number="editingFloorData.dimensionX"
@@ -207,6 +217,7 @@ const showEditFloorModal = ref(false)
 const editingFloorId = ref(null)
 const editingFloorData = ref({
   name: '',
+  number: null,
   dimensionX: null,
   dimensionY: null,
 })
@@ -317,6 +328,7 @@ const openEditFloorModal = (floor) => {
   editingFloorId.value = floor.id
   editingFloorData.value = {
     name: '',
+    number: null,
     dimensionX: null,
     dimensionY: null,
   }
@@ -329,6 +341,7 @@ const closeEditFloorModal = () => {
   editingFloorId.value = null
   editingFloorData.value = {
     name: '',
+    number: null,
     dimensionX: null,
     dimensionY: null,
   }
@@ -342,6 +355,9 @@ const saveEditFloor = async () => {
   const dto = {}
   if (editingFloorData.value.name && editingFloorData.value.name.trim()) {
     dto.name = editingFloorData.value.name.trim()
+  }
+  if (editingFloorData.value.number !== null && editingFloorData.value.number >= 0) {
+    dto.number = editingFloorData.value.number
   }
   if (editingFloorData.value.dimensionX !== null && editingFloorData.value.dimensionX > 0) {
     dto.dimensionX = editingFloorData.value.dimensionX
