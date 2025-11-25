@@ -88,26 +88,8 @@
                   :key="floor.id"
                   class="floor-item"
                 >
-                  <!-- Floor Edit Mode -->
-                  <div v-if="editingFloorId === floor.id" class="floor-edit">
-                    <input
-                      v-model="editingFloorData.name"
-                      type="text"
-                      placeholder="Floor name"
-                      class="edit-input"
-                    />
-                    <input
-                      v-model.number="editingFloorData.number"
-                      type="number"
-                      placeholder="Floor #"
-                      class="edit-input small"
-                    />
-                    <button @click="saveFloorEdit(floor.id)" class="save-btn">✓</button>
-                    <button @click="cancelFloorEdit" class="cancel-btn">✕</button>
-                  </div>
-
                   <!-- Floor Display Mode -->
-                  <div v-else class="floor-display">
+                  <div class="floor-display">
                     <div class="floor-info">
                       <span class="floor-name">{{ floor.name }} (#{{ floor.number }})</span>
                       <span class="floor-dimensions">
@@ -120,10 +102,10 @@
                         class="action-btn edit-btn"
                         title="Edit floor grid"
                       >
-                        ✎ Edit
+                        ✎ Edit Grid
                       </button>
                       <button
-                        @click="startEditFloor(floor)"
+                        @click="openEditFloorModal(floor)"
                         class="action-btn"
                         title="Edit floor info"
                       >
@@ -150,6 +132,54 @@
         <p class="info-text">ℹ️ Data is loaded from the backend API</p>
       </div>
     </div>
+
+    <!-- Edit Floor Modal -->
+    <div v-if="showEditFloorModal" class="modal-overlay" @click="closeEditFloorModal">
+      <div class="modal-content" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">Edit Floor</h3>
+          <button @click="closeEditFloorModal" class="modal-close">✕</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Floor Name</label>
+            <input
+              v-model="editingFloorData.name"
+              type="text"
+              class="form-input"
+              placeholder="Enter floor name (optional)"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">X Dimension</label>
+            <input
+              v-model.number="editingFloorData.dimensionX"
+              type="number"
+              class="form-input"
+              placeholder="Enter X dimension (optional)"
+              min="1"
+            />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Y Dimension</label>
+            <input
+              v-model.number="editingFloorData.dimensionY"
+              type="number"
+              class="form-input"
+              placeholder="Enter Y dimension (optional)"
+              min="1"
+            />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button @click="closeEditFloorModal" class="modal-btn cancel">Cancel</button>
+          <button @click="saveEditFloor" class="modal-btn save">Save Changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Message -->
+    <div v-if="showSuccessMessage" class="success-toast">✓ {{ successMessage }}</div>
   </div>
 </template>
 
@@ -161,6 +191,7 @@ import {
   createMap as apiCreateMap,
   deleteMap as apiDeleteMap,
   deleteFloor as apiDeleteFloor,
+  editFloorAll,
 } from '@/api/backend'
 
 // Define emitted events
@@ -170,6 +201,19 @@ const emit = defineEmits(['create-floor', 'edit-floor', 'create-map'])
 const maps = ref([])
 const loading = ref(false)
 const error = ref(null)
+
+// Floor editing modal state
+const showEditFloorModal = ref(false)
+const editingFloorId = ref(null)
+const editingFloorData = ref({
+  name: '',
+  dimensionX: null,
+  dimensionY: null,
+})
+
+// Success message state
+const showSuccessMessage = ref(false)
+const successMessage = ref('')
 
 // Fetch maps from API
 async function fetchMaps() {
@@ -268,28 +312,65 @@ const cancelMapEdit = () => {
   editingMapName.value = ''
 }
 
-// Floor info editing (local only) - handled above
+// Open edit floor modal
+const openEditFloorModal = (floor) => {
+  editingFloorId.value = floor.id
+  editingFloorData.value = {
+    name: '',
+    dimensionX: null,
+    dimensionY: null,
+  }
+  showEditFloorModal.value = true
+}
+
+// Close edit floor modal
+const closeEditFloorModal = () => {
+  showEditFloorModal.value = false
+  editingFloorId.value = null
+  editingFloorData.value = {
+    name: '',
+    dimensionX: null,
+    dimensionY: null,
+  }
+}
 
 // Save floor edit
-// const saveFloorEdit = (floorId) => {
-//   for (const map of maps.value) {
-//     const floor = map.floors.find((f) => f.id === floorId)
-//     if (floor) {
-//       floor.name = editingFloorData.value.name.trim() || floor.name
-//       floor.number = editingFloorData.value.number
-//       editingFloorId.value = null
-//       return
-//     }
-//   }
-// }
+const saveEditFloor = async () => {
+  if (!editingFloorId.value) return
 
-// // Cancel floor edit
-// const cancelFloorEdit = () => {
-//   editingFloorId.value = null
-//   editingFloorData.value = { name: '', number: 0 }
-// }
+  // Build DTO with only non-empty values
+  const dto = {}
+  if (editingFloorData.value.name && editingFloorData.value.name.trim()) {
+    dto.name = editingFloorData.value.name.trim()
+  }
+  if (editingFloorData.value.dimensionX !== null && editingFloorData.value.dimensionX > 0) {
+    dto.dimensionX = editingFloorData.value.dimensionX
+  }
+  if (editingFloorData.value.dimensionY !== null && editingFloorData.value.dimensionY > 0) {
+    dto.dimensionY = editingFloorData.value.dimensionY
+  }
 
-// Delete floor handled via API above
+  // Check if at least one field is being updated
+  if (Object.keys(dto).length === 0) {
+    alert('Please enter at least one value to update')
+    return
+  }
+
+  try {
+    await editFloorAll(editingFloorId.value, dto)
+    await fetchMaps()
+    closeEditFloorModal()
+
+    // Show success message
+    successMessage.value = 'Floor updated successfully!'
+    showSuccessMessage.value = true
+    setTimeout(() => {
+      showSuccessMessage.value = false
+    }, 3000)
+  } catch (err) {
+    alert(err?.message || 'Failed to update floor')
+  }
+}
 
 // Add new floor to map
 const addFloorToMap = (mapId, floorData) => {
@@ -721,6 +802,164 @@ defineExpose({
 
 .info-text:last-child {
   margin-bottom: 0;
+}
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modal-content {
+  background-color: #1f2937;
+  border-radius: 0.75rem;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid #374151;
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #374151;
+}
+
+.modal-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.modal-close:hover {
+  color: white;
+}
+
+.modal-body {
+  padding: 1.5rem;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #e5e7eb;
+  margin-bottom: 0.5rem;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 1rem;
+  color: white;
+  background-color: #374151;
+  border: 2px solid #4b5563;
+  border-radius: 0.5rem;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: #60a5fa;
+}
+
+.form-input::placeholder {
+  color: #6b7280;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  padding: 1.5rem;
+  border-top: 1px solid #374151;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  color: #e5e7eb;
+  background-color: #4b5563;
+}
+
+.modal-btn.cancel:hover {
+  background-color: #6b7280;
+}
+
+.modal-btn.save {
+  color: white;
+  background-color: #3b82f6;
+}
+
+.modal-btn.save:hover {
+  background-color: #2563eb;
+}
+
+/* Success Toast */
+.success-toast {
+  position: fixed;
+  top: 2rem;
+  right: 2rem;
+  background-color: #10b981;
+  color: white;
+  padding: 1rem 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+  font-weight: 600;
+  z-index: 2000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 /* Responsive Design */
