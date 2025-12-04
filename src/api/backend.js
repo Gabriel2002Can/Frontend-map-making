@@ -98,6 +98,15 @@ async function http(url, options = {}) {
  *  @property {number} y
  *  @property {boolean} isFilled
  *  @property {number} floorId
+ *  @property {number} roomId
+ */
+
+/** @typedef {Object} Room
+ *  @property {number} id
+ *  @property {string} name
+ *  @property {string} color
+ *  @property {string} description
+ *  @property {number} floorId
  */
 
 /** @typedef {Object} Floor
@@ -249,6 +258,38 @@ export async function editFloorAll(floorId, dto) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dto),
   })
+  return true
+}
+
+// ===== Room endpoints =====
+
+/**
+ * POST /api/room
+ * @param {roomDTO} dto
+ * @returns {Promise<Room>}
+ */
+export async function createRoom(dto) {
+  if (!dto) throw new Error('createRoom: dto is required')
+
+  await http(withBase('/api/room'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+  })
+
+  return true
+}
+
+export async function editRoom(roomId, dto) {
+  if (roomId == null) throw new Error('editRoom: roomId is required')
+  if (!dto) throw new Error('editRoom: dto is required')
+
+  await http(withBase(`/api/room/${encodeURIComponent(roomId)}`), {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(dto),
+  })
+
   return true
 }
 
