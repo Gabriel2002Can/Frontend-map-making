@@ -280,6 +280,12 @@ export async function createRoom(dto) {
   return true
 }
 
+/**
+ * PUT /api/room/{roomId}
+ * @param {number} roomId
+ * @param {roomDTO} dto
+ * @returns {Promise<Room>}
+ */
 export async function editRoom(roomId, dto) {
   if (roomId == null) throw new Error('editRoom: roomId is required')
   if (!dto) throw new Error('editRoom: dto is required')
