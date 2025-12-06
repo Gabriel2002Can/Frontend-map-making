@@ -1,57 +1,141 @@
 <template>
   <div class="floor-show-container">
-    <div class="card">
-      <button class="back" @click="$router.push('/maps/' + mapId)">← Back to map</button>
-      <h1 v-if="floor">{{ floor.name }}</h1>
-      <p v-else>Loading floor…</p>
-
-      <div v-if="floor" class="meta">
-        <p>Floor #: {{ floor.number }}</p>
-        <p>Size: {{ floor.dimensionX }} × {{ floor.dimensionY }}</p>
+    <!-- Header -->
+    <header class="page-header">
+      <button class="back-btn" @click="$router.push('/maps/' + mapId)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 12H5M12 19l-7-7 7-7"/>
+        </svg>
+        Back to Map
+      </button>
+      <div v-if="floor" class="header-info">
+        <h1>{{ floor.name }}</h1>
+        <div class="header-meta">
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+            </svg>
+            Floor {{ floor.number }}
+          </span>
+          <span class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="7" height="7"/>
+              <rect x="14" y="3" width="7" height="7"/>
+              <rect x="3" y="14" width="7" height="7"/>
+              <rect x="14" y="14" width="7" height="7"/>
+            </svg>
+            {{ floor.dimensionX }} × {{ floor.dimensionY }}
+          </span>
+          <span v-if="rooms.length > 0" class="meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            {{ rooms.length }} Rooms
+          </span>
+        </div>
       </div>
+      <p v-else class="loading-text">Loading floor…</p>
+    </header>
 
-      <!-- Floor Grid -->
-      <div v-if="floor" class="grid-section">
-        <div class="grid-wrapper" :style="gridStyle">
-          <div
-            v-for="cell in allCells"
-            :key="`${cell.x}-${cell.y}`"
-            :class="getCellClass(cell)"
-            :style="getCellStyle(cell)"
-            @mouseenter="handleCellHover(cell, $event)"
-            @mousemove="handleCellMove($event)"
-            @mouseleave="handleCellLeave"
-          ></div>
+    <!-- Main Content -->
+    <div v-if="floor" class="main-content">
+      <!-- Map Area -->
+      <div class="map-area">
+        <!-- Zoom Controls -->
+        <div class="zoom-toolbar">
+          <button @click="zoomOut" :disabled="zoomLevel <= 0.3" class="zoom-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
+          <button @click="zoomIn" :disabled="zoomLevel >= 2" class="zoom-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              <line x1="11" y1="8" x2="11" y2="14"/>
+              <line x1="8" y1="11" x2="14" y2="11"/>
+            </svg>
+          </button>
+          <button @click="resetZoom" class="zoom-btn reset" title="Reset zoom">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+              <path d="M3 3v5h5"/>
+            </svg>
+          </button>
+          <button @click="fitToScreen" class="zoom-btn fit" title="Fit to screen">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/>
+            </svg>
+          </button>
         </div>
 
-        <!-- Room Tooltip -->
-        <transition name="tooltip-fade">
-          <div v-if="tooltipVisible && tooltipRoom" class="room-tooltip" :style="tooltipStyle">
-            <span class="tooltip-color" :style="{ backgroundColor: tooltipRoom.color }"></span>
-            <span class="tooltip-name">{{ tooltipRoom.name }}</span>
+        <!-- Grid Container -->
+        <div class="grid-container" ref="gridContainerRef">
+          <div class="grid-scroll-area">
+            <div class="grid-wrapper" :style="gridStyle">
+              <div
+                v-for="cell in allCells"
+                :key="`${cell.x}-${cell.y}`"
+                :class="getCellClass(cell)"
+                :style="getCellStyle(cell)"
+                @mouseenter="handleCellHover(cell, $event)"
+                @mousemove="handleCellMove($event)"
+                @mouseleave="handleCellLeave"
+              ></div>
+            </div>
           </div>
-        </transition>
+
+          <!-- Room Tooltip -->
+          <transition name="tooltip-fade">
+            <div v-if="tooltipVisible && tooltipRoom" class="room-tooltip" :style="tooltipStyle">
+              <span class="tooltip-color" :style="{ backgroundColor: tooltipRoom.color }"></span>
+              <span class="tooltip-name">{{ tooltipRoom.name }}</span>
+            </div>
+          </transition>
+        </div>
       </div>
 
-      <!-- Rooms Legend -->
-      <div v-if="floor && rooms.length > 0" class="rooms-legend">
-        <h3 class="legend-title">Rooms</h3>
-        <div class="legend-list">
-          <div v-for="room in rooms" :key="room.id" class="legend-item">
-            <span class="legend-color" :style="{ backgroundColor: room.color }"></span>
-            <div class="legend-info">
-              <span class="legend-name">{{ room.name }}</span>
-              <span v-if="room.description" class="legend-desc">{{ room.description }}</span>
+      <!-- Sidebar - Room Legend -->
+      <aside v-if="rooms.length > 0" class="sidebar">
+        <div class="sidebar-header">
+          <h3>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+              <polyline points="9 22 9 12 15 12 15 22"/>
+            </svg>
+            Room Legend
+          </h3>
+          <span class="room-count">{{ rooms.length }}</span>
+        </div>
+        
+        <div class="room-list">
+          <div 
+            v-for="room in rooms" 
+            :key="room.id" 
+            class="room-card"
+            @mouseenter="highlightRoom(room.id)"
+            @mouseleave="unhighlightRoom"
+          >
+            <div class="room-card-header">
+              <span class="room-color" :style="{ backgroundColor: room.color }"></span>
+              <span class="room-name">{{ room.name }}</span>
+            </div>
+            <p v-if="room.description" class="room-desc">{{ room.description }}</p>
+            <div class="room-stats">
+              <span class="room-cell-count">{{ getRoomCellCount(room.id) }} cells</span>
             </div>
           </div>
         </div>
-      </div>
+      </aside>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { getFloorById, getRoomsByFloorId } from '@/api/backend'
 
 const props = defineProps({
@@ -62,12 +146,20 @@ const props = defineProps({
 const floor = ref(null)
 const rooms = ref([])
 const cellsWithRooms = ref(new Map())
+const gridContainerRef = ref(null)
+
+// Zoom state
+const zoomLevel = ref(1)
+const baseSize = 28
 
 // Tooltip state
 const tooltipVisible = ref(false)
 const tooltipRoom = ref(null)
 const tooltipPosition = ref({ x: 0, y: 0 })
 let tooltipTimeout = null
+
+// Highlight state
+const highlightedRoomId = ref(null)
 
 const load = async () => {
   try {
@@ -89,6 +181,9 @@ const load = async () => {
       })
       cellsWithRooms.value = newMap
     }
+    
+    // Auto-fit after load
+    setTimeout(() => fitToScreen(), 100)
   } catch (err) {
     console.error('Failed to load floor:', err)
     floor.value = null
@@ -97,11 +192,67 @@ const load = async () => {
 
 onMounted(load)
 
+// Zoom functions
+const zoomIn = () => {
+  if (zoomLevel.value < 2) {
+    zoomLevel.value = Math.min(2, zoomLevel.value + 0.2)
+  }
+}
+
+const zoomOut = () => {
+  if (zoomLevel.value > 0.3) {
+    zoomLevel.value = Math.max(0.3, zoomLevel.value - 0.2)
+  }
+}
+
+const resetZoom = () => {
+  zoomLevel.value = 1
+}
+
+const fitToScreen = () => {
+  if (!floor.value || !gridContainerRef.value) return
+  
+  const container = gridContainerRef.value
+  const containerWidth = container.clientWidth - 40 // padding
+  const containerHeight = container.clientHeight - 40
+  
+  const gridWidth = floor.value.dimensionX * baseSize
+  const gridHeight = floor.value.dimensionY * baseSize
+  
+  const scaleX = containerWidth / gridWidth
+  const scaleY = containerHeight / gridHeight
+  
+  // Use the smaller scale to fit both dimensions
+  const newZoom = Math.min(scaleX, scaleY, 2)
+  zoomLevel.value = Math.max(0.3, Math.min(2, newZoom))
+}
+
+// Handle window resize
+const handleResize = () => {
+  // Could auto-fit on resize if desired
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
+
 const getCellRoom = (cell) => {
   const cellKey = `${cell.x}-${cell.y}`
   const roomId = cellsWithRooms.value.get(cellKey)
   if (roomId == null) return null
   return rooms.value.find((r) => r.id === roomId)
+}
+
+const getRoomCellCount = (roomId) => {
+  let count = 0
+  cellsWithRooms.value.forEach((rid) => {
+    if (rid === roomId) count++
+  })
+  return count
 }
 
 const allCells = computed(() => {
@@ -120,17 +271,31 @@ const allCells = computed(() => {
 
 const getCellClass = (cell) => {
   const room = getCellRoom(cell)
+  const classes = ['cell']
+  
   if (room) {
-    return ['cell', 'has-room']
+    classes.push('has-room')
+    if (highlightedRoomId.value === room.id) {
+      classes.push('highlighted')
+    }
+  } else if (cell.isFilled) {
+    classes.push('filled')
+  } else {
+    classes.push('empty')
   }
-  return ['cell', cell.isFilled ? 'filled' : 'empty']
+  
+  return classes
 }
 
 const getCellStyle = (cell) => {
   const cellRoom = getCellRoom(cell)
+  const size = baseSize * zoomLevel.value
 
   if (!cellRoom) {
-    return {}
+    return {
+      width: `${size}px`,
+      height: `${size}px`,
+    }
   }
 
   const roomId = cellRoom.id
@@ -144,14 +309,14 @@ const getCellStyle = (cell) => {
   const hasRight = cellsWithRooms.value.get(`${x + 1}-${y}`) === roomId
 
   const borderColor = cellRoom.color
-  const borderWidth = '2px'
+  const borderWidth = Math.max(2, Math.round(2 * zoomLevel.value)) + 'px'
 
   // Use same color as background for internal borders (makes them invisible)
   const internalBorder = `${borderWidth} solid ${cellRoom.color}`
   const externalBorder = `${borderWidth} solid ${borderColor}`
 
   // Calculate border radius for corners
-  const cornerRadius = '4px'
+  const cornerRadius = Math.round(4 * zoomLevel.value) + 'px'
   const noRadius = '0px'
 
   const topLeft = !hasTop && !hasLeft ? cornerRadius : noRadius
@@ -160,6 +325,8 @@ const getCellStyle = (cell) => {
   const bottomRight = !hasBottom && !hasRight ? cornerRadius : noRadius
 
   return {
+    width: `${size}px`,
+    height: `${size}px`,
     borderTop: hasTop ? internalBorder : externalBorder,
     borderBottom: hasBottom ? internalBorder : externalBorder,
     borderLeft: hasLeft ? internalBorder : externalBorder,
@@ -185,7 +352,7 @@ const handleCellHover = (cell, event) => {
       tooltipVisible.value = true
     }, 200)
 
-    const rect = event.target.closest('.grid-section').getBoundingClientRect()
+    const rect = event.target.closest('.grid-container').getBoundingClientRect()
     tooltipPosition.value = {
       x: event.clientX - rect.left + 15,
       y: event.clientY - rect.top - 10,
@@ -195,7 +362,7 @@ const handleCellHover = (cell, event) => {
 
 const handleCellMove = (event) => {
   if (tooltipVisible.value || tooltipTimeout) {
-    const rect = event.target.closest('.grid-section')?.getBoundingClientRect()
+    const rect = event.target.closest('.grid-container')?.getBoundingClientRect()
     if (rect) {
       tooltipPosition.value = {
         x: event.clientX - rect.left + 15,
@@ -212,10 +379,18 @@ const handleCellLeave = () => {
   tooltipRoom.value = null
 }
 
+const highlightRoom = (roomId) => {
+  highlightedRoomId.value = roomId
+}
+
+const unhighlightRoom = () => {
+  highlightedRoomId.value = null
+}
+
 const gridStyle = computed(() => {
   if (!floor.value) return {}
   const cols = floor.value.dimensionX || 1
-  const size = 28
+  const size = baseSize * zoomLevel.value
   return {
     gridTemplateColumns: `repeat(${cols}, ${size}px)`,
     gridAutoRows: `${size}px`,
@@ -226,68 +401,183 @@ const gridStyle = computed(() => {
 
 <style scoped>
 .floor-show-container {
-  padding: 1.5rem;
   min-height: 100vh;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+  display: flex;
+  flex-direction: column;
 }
 
-.card {
-  background: linear-gradient(135deg, #1f2937, #111827);
-  padding: 1.5rem;
-  border-radius: 12px;
-  color: #e5e7eb;
-  max-width: 1200px;
-  margin: 0 auto;
+/* Header */
+.page-header {
+  background: linear-gradient(180deg, #1e293b 0%, transparent 100%);
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid #334155;
 }
 
-.back {
+.back-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   background: transparent;
   border: 1px solid #60a5fa;
   color: #60a5fa;
-  padding: 0.4rem 0.8rem;
-  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
   cursor: pointer;
-  margin-bottom: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 500;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.back:hover {
+.back-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.back-btn:hover {
   background: #60a5fa;
-  color: #1f2937;
+  color: #0f172a;
 }
 
-h1 {
-  margin: 0.5rem 0;
+.header-info {
+  flex: 1;
+}
+
+.header-info h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
   color: #f1f5f9;
 }
 
-.meta {
-  margin: 1rem 0;
-  color: #9ca3af;
+.header-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 0.35rem;
 }
 
-.meta p {
-  margin: 0.25rem 0;
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
 }
 
-/* Grid Section */
-.grid-section {
+.meta-item svg {
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+
+.loading-text {
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* Main Content */
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Map Area */
+.map-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* Zoom Toolbar */
+.zoom-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: #1e293b;
+  border-bottom: 1px solid #334155;
+}
+
+.zoom-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  color: #e2e8f0;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.zoom-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.zoom-btn:hover:not(:disabled) {
+  background: #475569;
+  border-color: #60a5fa;
+  color: #60a5fa;
+}
+
+.zoom-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.zoom-btn.reset,
+.zoom-btn.fit {
+  margin-left: 0.5rem;
+}
+
+.zoom-level {
+  min-width: 50px;
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+/* Grid Container */
+.grid-container {
+  flex: 1;
   position: relative;
-  margin: 1.5rem 0;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.grid-scroll-area {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  padding: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
 }
 
 .grid-wrapper {
   display: inline-grid;
   background: #1a2332;
-  padding: 0.75rem;
-  border-radius: 8px;
-  border: 1px solid #374151;
+  padding: 1rem;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
+/* Cells */
 .cell {
-  width: 28px;
-  height: 28px;
   box-sizing: border-box;
+  transition: filter 0.15s, transform 0.15s;
 }
 
 .cell.filled {
@@ -306,12 +596,22 @@ h1 {
 
 .cell.has-room {
   cursor: pointer;
-  transition: filter 0.15s;
 }
 
 .cell.has-room:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.2);
   z-index: 10;
+}
+
+.cell.highlighted {
+  filter: brightness(1.3);
+  z-index: 10;
+  animation: pulse-highlight 1s ease-in-out infinite;
+}
+
+@keyframes pulse-highlight {
+  0%, 100% { filter: brightness(1.3); }
+  50% { filter: brightness(1.5); }
 }
 
 /* Room Tooltip */
@@ -322,11 +622,11 @@ h1 {
   gap: 0.5rem;
   background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
   border: 1px solid #374151;
-  border-radius: 0.5rem;
+  border-radius: 8px;
   padding: 0.5rem 0.75rem;
   z-index: 100;
   pointer-events: none;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
   white-space: nowrap;
 }
 
@@ -354,92 +654,157 @@ h1 {
   transform: translateY(5px);
 }
 
-/* Rooms Legend */
-.rooms-legend {
-  margin-top: 1.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #374151;
+/* Sidebar */
+.sidebar {
+  width: 280px;
+  background: #1e293b;
+  border-left: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.legend-title {
-  font-size: 1rem;
-  font-weight: 600;
-  color: #60a5fa;
-  margin: 0 0 1rem 0;
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid #334155;
+}
+
+.sidebar-header h3 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #f1f5f9;
 }
 
-.legend-title::before {
-  content: '';
-  width: 4px;
-  height: 16px;
-  background: #60a5fa;
-  border-radius: 2px;
+.sidebar-header h3 svg {
+  width: 18px;
+  height: 18px;
+  color: #60a5fa;
 }
 
-.legend-list {
+.room-count {
+  background: #334155;
+  color: #94a3b8;
+  padding: 0.25rem 0.6rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.room-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.75rem;
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.legend-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.75rem;
-  background: #1a2332;
-  padding: 0.75rem 1rem;
+.room-card {
+  background: #0f172a;
+  border: 1px solid #334155;
   border-radius: 8px;
-  border: 1px solid #2d3748;
-  min-width: 180px;
-  max-width: 280px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.legend-color {
-  width: 16px;
-  height: 16px;
+.room-card:hover {
+  border-color: #60a5fa;
+  background: #1a2744;
+}
+
+.room-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.room-color {
+  width: 14px;
+  height: 14px;
   border-radius: 4px;
   flex-shrink: 0;
-  margin-top: 2px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
-.legend-info {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.legend-name {
+.room-name {
   font-size: 0.9rem;
   font-weight: 600;
   color: #f1f5f9;
 }
 
-.legend-desc {
+.room-desc {
+  margin: 0.5rem 0 0;
+  padding-left: 1.35rem;
   font-size: 0.8rem;
   color: #94a3b8;
   line-height: 1.4;
 }
 
+.room-stats {
+  margin-top: 0.5rem;
+  padding-left: 1.35rem;
+}
+
+.room-cell-count {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
 /* Responsive */
-@media (max-width: 640px) {
-  .floor-show-container {
-    padding: 0.75rem;
-  }
-
-  .card {
-    padding: 1rem;
-  }
-
-  .legend-list {
+@media (max-width: 900px) {
+  .main-content {
     flex-direction: column;
   }
+  
+  .sidebar {
+    width: 100%;
+    max-height: 250px;
+    border-left: none;
+    border-top: 1px solid #334155;
+  }
+  
+  .room-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  
+  .room-card {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+  }
+}
 
-  .legend-item {
-    max-width: 100%;
+@media (max-width: 640px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+  
+  .header-meta {
+    flex-wrap: wrap;
+    gap: 0.75rem;
+  }
+  
+  .zoom-toolbar {
+    justify-content: center;
+  }
+  
+  .sidebar {
+    max-height: 200px;
+  }
+  
+  .room-card {
+    min-width: 150px;
   }
 }
 </style>
