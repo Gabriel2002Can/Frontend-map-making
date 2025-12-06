@@ -75,15 +75,17 @@
         <div v-if="roomAssignmentMode" class="room-assignment-panel">
           <div class="assignment-info">
             <span class="assignment-text">
-              <strong>Room Assignment Mode:</strong> 
-              {{ rooms.find(r => r.id === activeRoomId)?.name || 'Unknown' }}
+              <strong>Room Assignment Mode:</strong>
+              {{ rooms.find((r) => r.id === activeRoomId)?.name || 'Unknown' }}
             </span>
             <span class="assignment-hint">
               Select cells to assign to this room. Currently selected: {{ selectedArea.size }} cells
             </span>
           </div>
           <div class="assignment-actions">
-            <button @click="saveRoomAssignment" class="action-btn save-assign-btn">Save Assignment</button>
+            <button @click="saveRoomAssignment" class="action-btn save-assign-btn">
+              Save Assignment
+            </button>
             <button @click="cancelRoomAssignment" class="action-btn cancel-btn">Cancel</button>
           </div>
         </div>
@@ -104,7 +106,7 @@
               v-for="cell in allCells"
               :key="`${cell.x}-${cell.y}`"
               :class="getCellClass(cell)"
-              :style="getCellRoom(cell) ? { backgroundColor: getCellRoom(cell).color, borderColor: getCellRoom(cell).color } : {}"
+              :style="getCellBorderStyle(cell)"
               @mousedown="handleMouseDown(cell, $event)"
               @mouseenter="handleMouseEnter(cell)"
               :title="`(${cell.x + 1}, ${cell.y + 1})${getCellRoom(cell) ? ' - ' + getCellRoom(cell).name : ''}`"
@@ -356,7 +358,7 @@ const loadInitialCells = async () => {
       filledCellsData.value = fullFloor.cells
         .filter((c) => c.isFilled)
         .map((c) => ({ x: c.x, y: c.y, isFilled: true }))
-      
+
       // Load room assignments
       const newCellsWithRooms = new Map()
       fullFloor.cells.forEach((c) => {
@@ -421,6 +423,12 @@ const deleteRoomAction = async (room) => {
     } else {
       roomMessage.value = { text: 'Room deleted successfully', type: 'success' }
     }
+
+    // Show confirmation alert and navigate to main page
+    setTimeout(() => {
+      alert('Room deletion confirmed')
+      emit('back')
+    }, 1000)
   } catch (err) {
     roomMessage.value = { text: err?.message || 'Failed to delete room', type: 'error' }
   } finally {
@@ -467,14 +475,14 @@ const activateRoomAssignment = (room) => {
   activeRoomId.value = room.id
   roomAssignmentMode.value = true
   selectedArea.value.clear()
-  
+
   // Pre-select cells that already belong to this room
   cellsWithRooms.value.forEach((roomId, cellKey) => {
     if (roomId === room.id) {
       selectedArea.value.add(cellKey)
     }
   })
-  
+
   showMessage(`Room assignment mode: ${room.name}. Select cells to assign/unassign.`, 'info')
 }
 
@@ -487,10 +495,10 @@ const cancelRoomAssignment = () => {
 
 const saveRoomAssignment = () => {
   if (!activeRoomId.value) return
-  
+
   // Update cellsWithRooms map based on selection
-  const activeRoom = rooms.value.find(r => r.id === activeRoomId.value)
-  
+  const activeRoom = rooms.value.find((r) => r.id === activeRoomId.value)
+
   if (!activeRoom) {
     roomMessage.value = { text: 'Active room not found', type: 'error' }
     return
@@ -503,14 +511,14 @@ const saveRoomAssignment = () => {
       newCellsWithRooms.set(cellKey, roomId)
     }
   })
-  
+
   // Add new assignments from selection
   selectedArea.value.forEach((cellKey) => {
     newCellsWithRooms.set(cellKey, activeRoomId.value)
   })
-  
+
   cellsWithRooms.value = newCellsWithRooms
-  
+
   showMessage(`Assigned ${selectedArea.value.size} cells to ${activeRoom.name}`, 'success')
   cancelRoomAssignment()
 }
@@ -714,7 +722,7 @@ const gridStyle = computed(() => {
 
   return {
     gridTemplateColumns: `repeat(${cols}, ${finalCellSize}px)`,
-    gap: '0.25rem',
+    gap: '0',
   }
 })
 
@@ -734,7 +742,41 @@ const getCellRoom = (cell) => {
   const cellKey = `${cell.x}-${cell.y}`
   const roomId = cellsWithRooms.value.get(cellKey)
   if (roomId == null) return null
-  return rooms.value.find(r => r.id === roomId)
+  return rooms.value.find((r) => r.id === roomId)
+}
+
+const getCellBorderStyle = (cell) => {
+  const cellRoom = getCellRoom(cell)
+
+  if (!cellRoom) {
+    // Non-room cells get standard borders and margin
+    return {
+      margin: '2px',
+      border: '2px solid #6b7280',
+    }
+  }
+
+  const roomId = cellRoom.id
+  const x = cell.x
+  const y = cell.y
+
+  // Check if adjacent cells have the same room
+  const hasTop = cellsWithRooms.value.get(`${x}-${y - 1}`) === roomId
+  const hasBottom = cellsWithRooms.value.get(`${x}-${y + 1}`) === roomId
+  const hasLeft = cellsWithRooms.value.get(`${x - 1}-${y}`) === roomId
+  const hasRight = cellsWithRooms.value.get(`${x + 1}-${y}`) === roomId
+
+  const borderWidth = '3px'
+  const borderColor = cellRoom.color
+
+  return {
+    borderTop: hasTop ? 'none' : `${borderWidth} solid ${borderColor}`,
+    borderBottom: hasBottom ? 'none' : `${borderWidth} solid ${borderColor}`,
+    borderLeft: hasLeft ? 'none' : `${borderWidth} solid ${borderColor}`,
+    borderRight: hasRight ? 'none' : `${borderWidth} solid ${borderColor}`,
+    backgroundColor: cellRoom.color,
+    margin: '0', // No margin for room cells
+  }
 }
 
 const getCellClass = (cell) => {
@@ -991,13 +1033,13 @@ const generatePayload = () => {
         y,
         isFilled: filledMap.has(cellKey),
       }
-      
+
       // Add roomId if cell is assigned to a room
       const roomId = cellsWithRooms.value.get(cellKey)
       if (roomId != null) {
         cellData.roomId = roomId
       }
-      
+
       allCellsWithStatus.push(cellData)
     }
   }
@@ -1444,8 +1486,8 @@ const goBack = () => {
   justify-content: center;
   font-size: 0.6rem;
   font-weight: 600;
-  border-radius: 0.25rem;
-  border: 2px solid;
+  border-radius: 0;
+  border: none;
   cursor: pointer;
   transition: all 0.2s;
   position: relative;
@@ -1459,7 +1501,6 @@ const goBack = () => {
 
 .grid-cell-filled {
   background-color: #3b82f6;
-  border-color: #60a5fa;
   color: white;
   box-shadow: 0 4px 10px -2px rgba(59, 130, 246, 0.5);
 }
@@ -1470,7 +1511,6 @@ const goBack = () => {
 
 .grid-cell-empty {
   background-color: #4b5563;
-  border-color: #6b7280;
   color: #9ca3af;
 }
 
@@ -1562,13 +1602,14 @@ const goBack = () => {
 .grid-cell-has-room {
   color: white;
   font-weight: 700;
-  border-width: 3px;
-  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
 .grid-cell-has-room:hover {
-  box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.5);
-  transform: scale(1.08);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  filter: brightness(1.1);
+  transform: none;
+  z-index: 10;
 }
 
 /* Room assignment mode cell states */
