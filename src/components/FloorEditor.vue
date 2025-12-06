@@ -70,6 +70,25 @@
         </div>
       </transition>
 
+      <!-- Room Assignment Control Panel -->
+      <transition name="slide-down">
+        <div v-if="roomAssignmentMode" class="room-assignment-panel">
+          <div class="assignment-info">
+            <span class="assignment-text">
+              <strong>Room Assignment Mode:</strong> 
+              {{ rooms.find(r => r.id === activeRoomId)?.name || 'Unknown' }}
+            </span>
+            <span class="assignment-hint">
+              Select cells to assign to this room. Currently selected: {{ selectedArea.size }} cells
+            </span>
+          </div>
+          <div class="assignment-actions">
+            <button @click="saveRoomAssignment" class="action-btn save-assign-btn">Save Assignment</button>
+            <button @click="cancelRoomAssignment" class="action-btn cancel-btn">Cancel</button>
+          </div>
+        </div>
+      </transition>
+
       <!-- Editing Area -->
       <div class="editor-wrapper" :class="`device-${deviceType}`">
         <!-- Grid -->
@@ -85,9 +104,10 @@
               v-for="cell in allCells"
               :key="`${cell.x}-${cell.y}`"
               :class="getCellClass(cell)"
+              :style="getCellRoom(cell) ? { backgroundColor: getCellRoom(cell).color, borderColor: getCellRoom(cell).color } : {}"
               @mousedown="handleMouseDown(cell, $event)"
               @mouseenter="handleMouseEnter(cell)"
-              :title="`(${cell.x + 1}, ${cell.y + 1})`"
+              :title="`(${cell.x + 1}, ${cell.y + 1})${getCellRoom(cell) ? ' - ' + getCellRoom(cell).name : ''}`"
             >
               <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
             </div>
@@ -147,6 +167,9 @@
                 </div>
               </div>
               <div class="room-item-actions">
+                <button type="button" class="room-assign-btn" @click="activateRoomAssignment(room)">
+                  Assign Cells
+                </button>
                 <button type="button" class="room-edit-btn" @click="startEditRoom(room)">
                   Edit
                 </button>
@@ -268,6 +291,11 @@ const selectedRoomId = ref(null)
 const roomMessage = ref(null)
 const isRoomSaving = ref(false)
 
+// Room assignment state
+const activeRoomId = ref(null) // Room being assigned to cells
+const roomAssignmentMode = ref(false) // Whether we're in room assignment mode
+const cellsWithRooms = ref(new Map()) // Map of 'x-y' -> roomId
+
 // Selection state
 const isSelecting = ref(false)
 const isDragging = ref(false)
@@ -328,6 +356,16 @@ const loadInitialCells = async () => {
       filledCellsData.value = fullFloor.cells
         .filter((c) => c.isFilled)
         .map((c) => ({ x: c.x, y: c.y, isFilled: true }))
+      
+      // Load room assignments
+      const newCellsWithRooms = new Map()
+      fullFloor.cells.forEach((c) => {
+        if (c.roomId != null) {
+          newCellsWithRooms.set(`${c.x}-${c.y}`, c.roomId)
+        }
+      })
+      cellsWithRooms.value = newCellsWithRooms
+      console.log('Loaded room assignments:', cellsWithRooms.value.size, 'cells')
     }
   } catch (err) {
     console.error('Failed to load floor cells:', err)
@@ -418,6 +456,63 @@ const startEditRoom = (room) => {
     description: room.description || '',
   }
   roomMessage.value = null
+}
+
+const activateRoomAssignment = (room) => {
+  if (!room || room.id == null) {
+    roomMessage.value = { text: 'Room id is required to assign cells.', type: 'error' }
+    return
+  }
+
+  activeRoomId.value = room.id
+  roomAssignmentMode.value = true
+  selectedArea.value.clear()
+  
+  // Pre-select cells that already belong to this room
+  cellsWithRooms.value.forEach((roomId, cellKey) => {
+    if (roomId === room.id) {
+      selectedArea.value.add(cellKey)
+    }
+  })
+  
+  showMessage(`Room assignment mode: ${room.name}. Select cells to assign/unassign.`, 'info')
+}
+
+const cancelRoomAssignment = () => {
+  activeRoomId.value = null
+  roomAssignmentMode.value = false
+  selectedArea.value.clear()
+  showMessage('Room assignment cancelled', 'info')
+}
+
+const saveRoomAssignment = () => {
+  if (!activeRoomId.value) return
+  
+  // Update cellsWithRooms map based on selection
+  const activeRoom = rooms.value.find(r => r.id === activeRoomId.value)
+  
+  if (!activeRoom) {
+    roomMessage.value = { text: 'Active room not found', type: 'error' }
+    return
+  }
+
+  // Remove all previous assignments for this room
+  const newCellsWithRooms = new Map()
+  cellsWithRooms.value.forEach((roomId, cellKey) => {
+    if (roomId !== activeRoomId.value) {
+      newCellsWithRooms.set(cellKey, roomId)
+    }
+  })
+  
+  // Add new assignments from selection
+  selectedArea.value.forEach((cellKey) => {
+    newCellsWithRooms.set(cellKey, activeRoomId.value)
+  })
+  
+  cellsWithRooms.value = newCellsWithRooms
+  
+  showMessage(`Assigned ${selectedArea.value.size} cells to ${activeRoom.name}`, 'success')
+  cancelRoomAssignment()
 }
 
 const submitRoom = async () => {
@@ -635,9 +730,34 @@ const isInCurrentDrag = (cell) => {
   return currentDragArea.value.has(`${cell.x}-${cell.y}`)
 }
 
+const getCellRoom = (cell) => {
+  const cellKey = `${cell.x}-${cell.y}`
+  const roomId = cellsWithRooms.value.get(cellKey)
+  if (roomId == null) return null
+  return rooms.value.find(r => r.id === roomId)
+}
+
 const getCellClass = (cell) => {
   const classes = ['grid-cell']
+  const cellRoom = getCellRoom(cell)
 
+  // Room assignment mode takes priority for visual feedback
+  if (roomAssignmentMode.value) {
+    if (isInSelection(cell)) {
+      classes.push('grid-cell-room-selected')
+    } else if (cellRoom && cellRoom.id === activeRoomId.value) {
+      classes.push('grid-cell-room-current')
+    } else if (cellRoom) {
+      classes.push('grid-cell-has-room')
+    } else if (cell.isFilled) {
+      classes.push('grid-cell-filled')
+    } else {
+      classes.push('grid-cell-empty')
+    }
+    return classes
+  }
+
+  // Normal selection mode
   if (isDragging.value && isInCurrentDrag(cell)) {
     if (isInSelection(cell)) {
       classes.push('grid-cell-removing')
@@ -655,7 +775,10 @@ const getCellClass = (cell) => {
       classes.push('grid-cell-selecting')
     }
   } else {
-    if (cell.isFilled) {
+    // Show room color if cell has a room assignment
+    if (cellRoom) {
+      classes.push('grid-cell-has-room')
+    } else if (cell.isFilled) {
       classes.push('grid-cell-filled')
     } else {
       classes.push('grid-cell-empty')
@@ -855,18 +978,27 @@ const zoomOut = () => {
 }
 
 const generatePayload = () => {
-  // Create full list of cells with filled status
+  // Create full list of cells with filled status and room assignments
   const allCellsWithStatus = []
   const filledMap = new Map(filledCells.value.map((c) => [`${c.x}-${c.y}`, true]))
 
-  // Generate full grid with filled status
+  // Generate full grid with filled status and room assignments
   for (let y = 0; y < props.floor.dimensionY; y++) {
     for (let x = 0; x < props.floor.dimensionX; x++) {
-      allCellsWithStatus.push({
+      const cellKey = `${x}-${y}`
+      const cellData = {
         x,
         y,
-        isFilled: filledMap.has(`${x}-${y}`),
-      })
+        isFilled: filledMap.has(cellKey),
+      }
+      
+      // Add roomId if cell is assigned to a room
+      const roomId = cellsWithRooms.value.get(cellKey)
+      if (roomId != null) {
+        cellData.roomId = roomId
+      }
+      
+      allCellsWithStatus.push(cellData)
     }
   }
 
@@ -1168,6 +1300,70 @@ const goBack = () => {
   transform: translateY(-10px) scale(0.98);
 }
 
+/* Room Assignment Panel */
+.room-assignment-panel {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.assignment-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  color: white;
+}
+
+.assignment-text {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.assignment-text strong {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.assignment-hint {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-style: italic;
+}
+
+.assignment-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.save-assign-btn {
+  background-color: #fbbf24;
+  color: #1f2937;
+  padding: 0.6rem 1.2rem;
+  font-size: 0.9rem;
+  font-weight: 700;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.save-assign-btn:hover {
+  background-color: #f59e0b;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(251, 191, 36, 0.4);
+}
+
 .action-button {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
@@ -1362,6 +1558,38 @@ const goBack = () => {
   }
 }
 
+/* Room-assigned cell styles */
+.grid-cell-has-room {
+  color: white;
+  font-weight: 700;
+  border-width: 3px;
+  box-shadow: 0 4px 12px -2px rgba(0, 0, 0, 0.4);
+}
+
+.grid-cell-has-room:hover {
+  box-shadow: 0 6px 18px -2px rgba(0, 0, 0, 0.5);
+  transform: scale(1.08);
+}
+
+/* Room assignment mode cell states */
+.grid-cell-room-selected {
+  background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
+  border-color: #fcd34d !important;
+  color: #1f2937 !important;
+  box-shadow:
+    0 0 20px rgba(251, 191, 36, 0.7),
+    inset 0 0 10px rgba(255, 255, 255, 0.3) !important;
+  transform: scale(1.05);
+  z-index: 5;
+  font-weight: 800;
+}
+
+.grid-cell-room-current {
+  opacity: 0.6;
+  border-color: rgba(255, 255, 255, 0.5) !important;
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+}
+
 .cell-text {
   display: none;
 }
@@ -1549,6 +1777,22 @@ const goBack = () => {
   gap: 0.4rem;
   flex-shrink: 0;
   align-items: center;
+}
+
+.room-assign-btn {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.room-assign-btn:hover {
+  background-color: #059669;
 }
 
 .room-name {
@@ -1967,6 +2211,12 @@ const goBack = () => {
     padding: 0.75rem;
   }
 
+  .room-assignment-panel {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
+  }
+
   .selection-info {
     justify-content: center;
   }
@@ -1976,6 +2226,11 @@ const goBack = () => {
   }
 
   .selection-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .assignment-actions {
     flex-direction: column;
     width: 100%;
   }
