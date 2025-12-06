@@ -126,6 +126,95 @@
         </div>
       </div>
 
+      <!-- Room Manager -->
+      <div class="room-manager-card">
+        <div class="room-manager-header">
+          <div>
+            <h3 class="section-title">Rooms</h3>
+            <p class="room-subtitle">Create or edit rooms for this floor.</p>
+          </div>
+          <span class="room-badge">{{ rooms.length }} total</span>
+        </div>
+
+        <div class="room-columns">
+          <div class="room-list" v-if="rooms.length > 0">
+            <div v-for="room in rooms" :key="room.id || room.name" class="room-item">
+              <div class="room-left">
+                <span class="room-dot" :style="{ backgroundColor: room.color || '#3b82f6' }"></span>
+                <div class="room-meta">
+                  <div class="room-name">{{ room.name || 'Untitled room' }}</div>
+                  <div class="room-desc">{{ room.description || 'No description yet' }}</div>
+                </div>
+              </div>
+              <div class="room-item-actions">
+                <button type="button" class="room-edit-btn" @click="startEditRoom(room)">
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  class="room-delete-btn"
+                  :disabled="isRoomSaving"
+                  @click="deleteRoomAction(room)"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+          <div v-else class="empty-state room-empty">
+            <p>No rooms yet. Create the first one below.</p>
+          </div>
+
+          <form class="room-form" @submit.prevent="submitRoom">
+            <label class="room-label">Room name</label>
+            <input
+              class="room-input"
+              v-model="roomForm.name"
+              type="text"
+              placeholder="e.g., Kitchen"
+              required
+            />
+
+            <label class="room-label">Color</label>
+            <div class="room-color-row">
+              <input class="room-color" v-model="roomForm.color" type="color" />
+              <input
+                class="room-input color-text"
+                v-model="roomForm.color"
+                type="text"
+                placeholder="#2563eb"
+              />
+            </div>
+
+            <label class="room-label">Description</label>
+            <textarea
+              class="room-textarea"
+              v-model="roomForm.description"
+              rows="2"
+              placeholder="Short description"
+            ></textarea>
+
+            <div class="room-actions">
+              <button type="submit" class="room-primary" :disabled="isRoomSaving">
+                {{ selectedRoomId ? 'Update Room' : 'Create Room' }}
+              </button>
+              <button
+                type="button"
+                class="room-secondary"
+                :disabled="isRoomSaving"
+                @click="resetRoomForm"
+              >
+                Clear
+              </button>
+            </div>
+
+            <p v-if="roomMessage" :class="['room-message', roomMessage.type]">
+              {{ roomMessage.text }}
+            </p>
+          </form>
+        </div>
+      </div>
+
       <!-- Bottom Buttons -->
       <div class="editor-footer">
         <button @click="saveChanges" class="save-button" :disabled="isSaving">
@@ -147,7 +236,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { getFloorById } from '@/api/backend'
+import { createRoom, editRoom, getRoomsByFloorId, getFloorById, deleteRoom } from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['save-cells', 'back'])
@@ -168,6 +257,17 @@ const actionMessage = ref(null)
 const filledCellsData = ref([])
 const windowWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1200)
 
+// Rooms state
+const rooms = ref(Array.isArray(props.floor.rooms) ? props.floor.rooms : [])
+const roomForm = ref({
+  name: '',
+  color: '#2563eb',
+  description: '',
+})
+const selectedRoomId = ref(null)
+const roomMessage = ref(null)
+const isRoomSaving = ref(false)
+
 // Selection state
 const isSelecting = ref(false)
 const isDragging = ref(false)
@@ -183,10 +283,46 @@ if (props.floor.cells && Array.isArray(props.floor.cells)) {
   filledCellsData.value = props.floor.cells.filter((cell) => cell.isFilled)
 }
 
+const syncRoomsFromPayload = (floorPayload, options = { resetIfMissing: false }) => {
+  if (floorPayload && Array.isArray(floorPayload.rooms)) {
+    rooms.value = floorPayload.rooms
+  } else if (options.resetIfMissing) {
+    rooms.value = []
+  }
+}
+
+syncRoomsFromPayload(props.floor, { resetIfMissing: true })
+
+const loadRooms = async (options = { resetOnFailure: false }) => {
+  try {
+    console.log('Loading rooms for floor:', props.floor.id)
+    const roomList = await getRoomsByFloorId(props.floor.id)
+    console.log('Received rooms:', roomList)
+    if (Array.isArray(roomList)) {
+      rooms.value = roomList
+      console.log('Rooms set to:', rooms.value)
+    } else if (options.resetOnFailure) {
+      rooms.value = []
+    }
+    return true
+  } catch (err) {
+    console.error('Failed to load rooms:', err)
+    if (options.resetOnFailure) {
+      rooms.value = []
+    }
+    roomMessage.value = { text: err?.message || 'Failed to load rooms', type: 'error' }
+    return false
+  }
+}
+
 // Load filled cells from API to ensure we show the persisted state
 const loadInitialCells = async () => {
   isLoadingCells.value = true
   try {
+    console.log('=== Loading initial data ===')
+    const roomsLoaded = await loadRooms({ resetOnFailure: true })
+    console.log('Rooms loaded:', roomsLoaded, 'Current rooms count:', rooms.value.length)
+
     const fullFloor = await getFloorById(props.floor.id)
     if (fullFloor && Array.isArray(fullFloor.cells)) {
       filledCellsData.value = fullFloor.cells
@@ -197,6 +333,161 @@ const loadInitialCells = async () => {
     console.error('Failed to load floor cells:', err)
   } finally {
     isLoadingCells.value = false
+  }
+}
+
+const refreshRoomsFromApi = async () => {
+  return loadRooms({ resetOnFailure: false })
+}
+
+const upsertLocalRoom = (roomLike) => {
+  if (!roomLike) return
+
+  const id = roomLike.id ?? Date.now()
+  const existingIdx = rooms.value.findIndex((r) => r.id === id)
+  const next = {
+    id,
+    name: roomLike.name || 'Untitled room',
+    color: roomLike.color || '#2563eb',
+    description: roomLike.description || '',
+    floorId: roomLike.floorId ?? props.floor.id,
+  }
+
+  if (existingIdx >= 0) {
+    rooms.value.splice(existingIdx, 1, next)
+  } else {
+    rooms.value.push(next)
+  }
+}
+
+const deleteRoomAction = async (room) => {
+  if (!room || room.id == null) {
+    roomMessage.value = { text: 'Room id is required to delete.', type: 'error' }
+    return
+  }
+
+  if (isRoomSaving.value) return
+  isRoomSaving.value = true
+
+  try {
+    await deleteRoom(room.id)
+    // Remove locally
+    rooms.value = rooms.value.filter((r) => r.id !== room.id)
+
+    const refreshed = await refreshRoomsFromApi()
+    if (!refreshed) {
+      roomMessage.value = {
+        text: 'Room deleted. Backend did not return rooms list; showing local state.',
+        type: 'info',
+      }
+    } else {
+      roomMessage.value = { text: 'Room deleted successfully', type: 'success' }
+    }
+  } catch (err) {
+    roomMessage.value = { text: err?.message || 'Failed to delete room', type: 'error' }
+  } finally {
+    isRoomSaving.value = false
+    setTimeout(() => {
+      roomMessage.value = null
+    }, 3500)
+  }
+}
+
+const resetRoomForm = (clearMessage = true) => {
+  selectedRoomId.value = null
+  roomForm.value = {
+    name: '',
+    color: '#2563eb',
+    description: '',
+  }
+  if (clearMessage) {
+    roomMessage.value = null
+  }
+}
+
+const startEditRoom = (room) => {
+  if (!room || room.id == null) {
+    roomMessage.value = { text: 'Room id is required to edit.', type: 'error' }
+    return
+  }
+
+  selectedRoomId.value = room.id
+  roomForm.value = {
+    name: room.name || '',
+    color: room.color || '#2563eb',
+    description: room.description || '',
+  }
+  roomMessage.value = null
+}
+
+const submitRoom = async () => {
+  if (isRoomSaving.value) return
+
+  const trimmedName = roomForm.value.name ? roomForm.value.name.trim() : ''
+  if (!trimmedName) {
+    roomMessage.value = { text: 'Room name is required', type: 'error' }
+    return
+  }
+
+  isRoomSaving.value = true
+  roomMessage.value = null
+
+  try {
+    const prevRooms = [...rooms.value]
+
+    if (selectedRoomId.value) {
+      await editRoom(selectedRoomId.value, {
+        name: trimmedName,
+        color: roomForm.value.color || '#2563eb',
+        description: roomForm.value.description || '',
+      })
+      roomMessage.value = { text: 'Room updated successfully', type: 'success' }
+      upsertLocalRoom({
+        id: selectedRoomId.value,
+        name: trimmedName,
+        color: roomForm.value.color,
+        description: roomForm.value.description,
+      })
+    } else {
+      await createRoom({
+        name: trimmedName,
+        color: roomForm.value.color || '#2563eb',
+        description: roomForm.value.description || '',
+        floorId: props.floor.id,
+      })
+      roomMessage.value = { text: 'Room created successfully', type: 'success' }
+      upsertLocalRoom({
+        name: trimmedName,
+        color: roomForm.value.color,
+        description: roomForm.value.description,
+        floorId: props.floor.id,
+      })
+      resetRoomForm()
+    }
+
+    const refreshed = await refreshRoomsFromApi()
+    if (!refreshed) {
+      roomMessage.value = {
+        text: 'Room saved. Backend did not return rooms list; showing local state.',
+        type: 'info',
+      }
+    }
+
+    // If backend returned an empty list but we had optimistic data, keep it visible and warn
+    if (rooms.value.length === 0 && prevRooms.length > 0) {
+      rooms.value = prevRooms
+      roomMessage.value = {
+        text: 'Backend returned no rooms; showing local state. Verify backend persistence.',
+        type: 'info',
+      }
+    }
+  } catch (err) {
+    roomMessage.value = { text: err?.message || 'Failed to save room', type: 'error' }
+  } finally {
+    isRoomSaving.value = false
+    setTimeout(() => {
+      roomMessage.value = null
+    }, 3500)
   }
 }
 
@@ -214,6 +505,15 @@ onMounted(() => {
   // Fetch latest cells for this floor
   loadInitialCells()
 })
+
+// Keep rooms list in sync if the parent provides a floor with rooms attached
+watch(
+  () => props.floor,
+  (nextFloor) => {
+    syncRoomsFromPayload(nextFloor)
+  },
+  { deep: false },
+)
 
 // If the floor ID changes while this component is mounted, reload cells
 watch(
@@ -1159,6 +1459,270 @@ const goBack = () => {
   line-height: 1.4;
 }
 
+/* Room Manager */
+.room-manager-card {
+  margin: 1.5rem 0;
+  background-color: #111827;
+  border-radius: 0.75rem;
+  border: 1px solid #374151;
+  padding: 1rem;
+}
+
+.room-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.room-subtitle {
+  color: #9ca3af;
+  margin: 0.25rem 0 0 0;
+  font-size: 0.9rem;
+}
+
+.room-badge {
+  background-color: #1f2937;
+  color: #d1d5db;
+  border: 1px solid #4b5563;
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.room-columns {
+  display: grid;
+  grid-template-columns: 1.1fr 0.9fr;
+  gap: 1rem;
+}
+
+.room-list {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.room-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.35rem;
+  border-bottom: 1px solid #2d3748;
+}
+
+.room-item:last-child {
+  border-bottom: none;
+}
+
+.room-left {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+}
+
+.room-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  border: 1px solid #0f172a;
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.room-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.room-item-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.room-name {
+  color: #e5e7eb;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.room-desc {
+  color: #9ca3af;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.room-edit-btn {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.room-edit-btn:hover {
+  background-color: #1d4ed8;
+}
+
+.room-delete-btn {
+  background-color: #b91c1c;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.35rem 0.65rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.room-delete-btn:hover:not(:disabled) {
+  background-color: #991b1b;
+}
+
+.room-delete-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.room-empty {
+  margin: 0;
+}
+
+.room-form {
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.room-label {
+  color: #d1d5db;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.room-input {
+  width: 100%;
+  padding: 0.65rem;
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.4rem;
+  color: white;
+}
+
+.room-textarea {
+  width: 100%;
+  padding: 0.65rem;
+  background-color: #374151;
+  border: 1px solid #4b5563;
+  border-radius: 0.4rem;
+  color: white;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.room-color-row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.room-color {
+  height: 42px;
+  border: 1px solid #4b5563;
+  border-radius: 0.4rem;
+  background-color: #374151;
+}
+
+.color-text {
+  font-family: 'Courier New', monospace;
+}
+
+.room-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.room-primary {
+  background-color: #10b981;
+  color: white;
+  border: none;
+  padding: 0.65rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+
+.room-primary:disabled {
+  background-color: #6b7280;
+  cursor: not-allowed;
+}
+
+.room-primary:not(:disabled):hover {
+  background-color: #0f9f75;
+}
+
+.room-secondary {
+  background-color: #374151;
+  color: #e5e7eb;
+  border: 1px solid #4b5563;
+  padding: 0.65rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.room-secondary:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.room-secondary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.room-message {
+  margin: 0.25rem 0 0 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.4rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.room-message.success {
+  background-color: #064e3b;
+  color: #34d399;
+  border: 1px solid #10b981;
+}
+
+.room-message.error {
+  background-color: #7f1d1d;
+  color: #fca5a5;
+  border: 1px solid #ef4444;
+}
+
 /* Mobile Summary */
 .mobile-summary {
   background-color: #374151;
@@ -1295,6 +1859,14 @@ const goBack = () => {
   .grid-wrapper {
     min-height: 400px;
   }
+
+  .room-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .room-list {
+    max-height: 300px;
+  }
 }
 
 /* Mobile adjustments */
@@ -1413,6 +1985,18 @@ const goBack = () => {
     justify-content: center;
     padding: 0.5rem;
     font-size: 0.85rem;
+  }
+
+  .room-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .room-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .room-color-row {
+    grid-template-columns: 1fr;
   }
 }
 </style>

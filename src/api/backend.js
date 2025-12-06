@@ -264,6 +264,17 @@ export async function editFloorAll(floorId, dto) {
 // ===== Room endpoints =====
 
 /**
+ * GET /api/room
+ * @param {number} floorId
+ * @returns {promisse<Room>}
+ */
+export async function getRoomsByFloorId(floorId) {
+  if (floorId == null) throw new Error('getRoomsByFloorId: floorId is required')
+
+  return http(withBase(`/api/room/${encodeURIComponent(floorId)}`))
+}
+
+/**
  * POST /api/room
  * @param {roomDTO} dto
  * @returns {Promise<Room>}
@@ -294,6 +305,21 @@ export async function editRoom(roomId, dto) {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(dto),
+  })
+
+  return true
+}
+
+/**
+ * DELETE /api/room/{roomId}
+ * @param {number} roomId
+ * @returns {Promise<Room>}
+ */
+export async function deleteRoom(roomId) {
+  if (roomId == null) throw new Error('deleteRoom: roomId is required')
+
+  await http(withBase(`/api/room/${encodeURIComponent(roomId)}`), {
+    method: 'DELETE',
   })
 
   return true
@@ -330,4 +356,8 @@ export default {
   deleteFloor,
   editFloorAll,
   updateCells,
+  getRoomsByFloorId,
+  createRoom,
+  editRoom,
+  deleteRoom,
 }
