@@ -745,6 +745,23 @@ const getCellRoom = (cell) => {
   return rooms.value.find((r) => r.id === roomId)
 }
 
+// Validation: only allow adding filled, adjacent cells to a room selection
+const isCellAdjacentToActiveRoom = (x, y) => {
+  if (!activeRoomId.value) return false
+
+  // Treat already selected cells as part of the active room group
+  const selectedHas = (xx, yy) => selectedArea.value.has(`${xx}-${yy}`)
+  const assignedHas = (xx, yy) => cellsWithRooms.value.get(`${xx}-${yy}`) === activeRoomId.value
+
+  // Check four-neighborhood adjacency
+  return (
+    selectedHas(x, y - 1) || assignedHas(x, y - 1) ||
+    selectedHas(x, y + 1) || assignedHas(x, y + 1) ||
+    selectedHas(x - 1, y) || assignedHas(x - 1, y) ||
+    selectedHas(x + 1, y) || assignedHas(x + 1, y)
+  )
+}
+
 const getCellBorderStyle = (cell) => {
   const cellRoom = getCellRoom(cell)
 
@@ -878,26 +895,68 @@ const handleMouseUp = () => {
 
   if (!isDragging.value && mouseDownCell.value) {
     const cellKey = `${mouseDownCell.value.x}-${mouseDownCell.value.y}`
+    const x = mouseDownCell.value.x
+    const y = mouseDownCell.value.y
 
-    if (selectedArea.value.size > 0) {
-      if (selectedArea.value.has(cellKey)) {
-        selectedArea.value.delete(cellKey)
-        showMessage('Cell removed from selection', 'info')
+    // Room assignment mode: enforce adjacency and filled-only additions
+    if (roomAssignmentMode.value) {
+      const filled = isCellFilled(mouseDownCell.value)
+      if (!filled) {
+        showMessage('Only filled cells can be added to rooms', 'error')
+      } else if (selectedArea.value.size === 0) {
+        // First selection must be adjacent to existing room assignment
+        if (isCellAdjacentToActiveRoom(x, y)) {
+          selectedArea.value.add(cellKey)
+          showMessage('Cell added to room selection', 'success')
+        } else {
+          showMessage('Start from a cell adjacent to the room', 'error')
+        }
       } else {
-        selectedArea.value.add(cellKey)
-        showMessage('Cell added to selection', 'info')
+        if (selectedArea.value.has(cellKey)) {
+          selectedArea.value.delete(cellKey)
+          showMessage('Cell removed from selection', 'info')
+        } else if (isCellAdjacentToActiveRoom(x, y)) {
+          selectedArea.value.add(cellKey)
+          showMessage('Cell added to room selection', 'success')
+        } else {
+          showMessage('Only adjacent cells can be added', 'error')
+        }
       }
     } else {
-      toggleCell(mouseDownCell.value)
+      // Normal mode: toggle fill
+      if (selectedArea.value.size > 0) {
+        if (selectedArea.value.has(cellKey)) {
+          selectedArea.value.delete(cellKey)
+          showMessage('Cell removed from selection', 'info')
+        } else {
+          selectedArea.value.add(cellKey)
+          showMessage('Cell added to selection', 'info')
+        }
+      } else {
+        toggleCell(mouseDownCell.value)
+      }
     }
   } else if (isDragging.value) {
-    currentDragArea.value.forEach((cellKey) => {
-      if (selectedArea.value.has(cellKey)) {
-        selectedArea.value.delete(cellKey)
-      } else {
-        selectedArea.value.add(cellKey)
-      }
-    })
+    if (roomAssignmentMode.value) {
+      // Apply adjacency + filled validation per cell in drag area
+      currentDragArea.value.forEach((cellKey) => {
+        const [x, y] = cellKey.split('-').map(Number)
+        const filled = filledCellsData.value.findIndex((c) => c.x === x && c.y === y) !== -1
+        if (selectedArea.value.has(cellKey)) {
+          selectedArea.value.delete(cellKey)
+        } else if (filled && isCellAdjacentToActiveRoom(x, y)) {
+          selectedArea.value.add(cellKey)
+        }
+      })
+    } else {
+      currentDragArea.value.forEach((cellKey) => {
+        if (selectedArea.value.has(cellKey)) {
+          selectedArea.value.delete(cellKey)
+        } else {
+          selectedArea.value.add(cellKey)
+        }
+      })
+    }
 
     if (currentDragArea.value.size > 0) {
       showMessage(`Selection updated: ${selectedArea.value.size} cells selected`, 'info')
