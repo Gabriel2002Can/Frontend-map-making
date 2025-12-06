@@ -108,12 +108,29 @@
               :class="getCellClass(cell)"
               :style="getCellBorderStyle(cell)"
               @mousedown="handleMouseDown(cell, $event)"
-              @mouseenter="handleMouseEnter(cell)"
-              :title="`(${cell.x + 1}, ${cell.y + 1})${getCellRoom(cell) ? ' - ' + getCellRoom(cell).name : ''}`"
+              @mouseenter="handleCellMouseEnter(cell, $event)"
+              @mousemove="handleCellMouseMove(cell, $event)"
+              @mouseleave="handleCellMouseLeave"
             >
               <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
             </div>
           </div>
+          
+          <!-- Custom Room Tooltip -->
+          <transition name="tooltip-fade">
+            <div 
+              v-if="tooltipVisible && tooltipRoom" 
+              class="room-tooltip"
+              :style="tooltipStyle"
+            >
+              <div class="tooltip-header">
+                <span class="tooltip-color" :style="{ backgroundColor: tooltipRoom.color }"></span>
+                <span class="tooltip-name">{{ tooltipRoom.name }}</span>
+              </div>
+              <div v-if="tooltipRoom.description" class="tooltip-desc">{{ tooltipRoom.description }}</div>
+              <div class="tooltip-coords">Cell ({{ tooltipCell?.x + 1 }}, {{ tooltipCell?.y + 1 }})</div>
+            </div>
+          </transition>
         </div>
 
         <!-- Right Panel -->
@@ -151,94 +168,279 @@
       <!-- Room Manager -->
       <div class="room-manager-card">
         <div class="room-manager-header">
-          <div>
-            <h3 class="section-title">Rooms</h3>
-            <p class="room-subtitle">Create or edit rooms for this floor.</p>
+          <div class="room-header-left">
+            <h3 class="section-title">
+              <svg class="room-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+              Room Manager
+            </h3>
+            <p class="room-subtitle">Define and organize spaces on this floor</p>
           </div>
-          <span class="room-badge">{{ rooms.length }} total</span>
+          <div class="room-header-stats">
+            <span class="room-stat">
+              <span class="stat-number">{{ rooms.length }}</span>
+              <span class="stat-label">Rooms</span>
+            </span>
+            <span class="room-stat">
+              <span class="stat-number">{{ totalAssignedCells }}</span>
+              <span class="stat-label">Assigned</span>
+            </span>
+          </div>
         </div>
 
         <div class="room-columns">
-          <div class="room-list" v-if="rooms.length > 0">
-            <div v-for="room in rooms" :key="room.id || room.name" class="room-item">
-              <div class="room-left">
-                <span class="room-dot" :style="{ backgroundColor: room.color || '#3b82f6' }"></span>
-                <div class="room-meta">
-                  <div class="room-name">{{ room.name || 'Untitled room' }}</div>
-                  <div class="room-desc">{{ room.description || 'No description yet' }}</div>
+          <!-- Room List -->
+          <div class="room-list-section">
+            <div class="room-list-header">
+              <span class="list-title">Your Rooms</span>
+              <button 
+                v-if="rooms.length > 0" 
+                type="button" 
+                class="collapse-all-btn"
+                @click="collapseAllRooms"
+              >
+                {{ expandedRooms.size > 0 ? 'Collapse All' : 'Expand All' }}
+              </button>
+            </div>
+            
+            <div class="room-list" v-if="rooms.length > 0">
+              <div 
+                v-for="room in rooms" 
+                :key="room.id || room.name" 
+                class="room-card"
+                :class="{ 
+                  'room-card-expanded': expandedRooms.has(room.id),
+                  'room-card-editing': selectedRoomId === room.id,
+                  'room-card-assigning': activeRoomId === room.id
+                }"
+              >
+                <div class="room-card-header" @click="toggleRoomExpand(room.id)">
+                  <div class="room-card-left">
+                    <span class="room-color-indicator" :style="{ backgroundColor: room.color || '#3b82f6' }"></span>
+                    <div class="room-card-info">
+                      <div class="room-card-name">{{ room.name || 'Untitled room' }}</div>
+                      <div class="room-card-meta">
+                        <span class="room-cell-count">{{ getRoomCellCount(room.id) }} cells</span>
+                        <span v-if="activeRoomId === room.id" class="room-status-badge assigning">Assigning</span>
+                        <span v-else-if="selectedRoomId === room.id" class="room-status-badge editing">Editing</span>
+                      </div>
+                    </div>
+                  </div>
+                  <button class="room-expand-btn" :class="{ 'expanded': expandedRooms.has(room.id) }">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                  </button>
+                </div>
+                
+                <transition name="expand">
+                  <div v-if="expandedRooms.has(room.id)" class="room-card-body">
+                    <p class="room-card-desc">{{ room.description || 'No description provided' }}</p>
+                    <div class="room-card-actions">
+                      <button 
+                        type="button" 
+                        class="room-action-btn assign"
+                        :class="{ 'active': activeRoomId === room.id }"
+                        @click.stop="activateRoomAssignment(room)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M12 5v14M5 12h14"/>
+                        </svg>
+                        {{ activeRoomId === room.id ? 'Assigning...' : 'Assign Cells' }}
+                      </button>
+                      <button 
+                        type="button" 
+                        class="room-action-btn edit"
+                        @click.stop="startEditRoom(room)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="room-action-btn delete"
+                        :disabled="isRoomSaving"
+                        @click.stop="confirmDeleteRoom(room)"
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <polyline points="3 6 5 6 21 6"/>
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                        </svg>
+                        Delete
+                      </button>
+                    </div>
+                  </div>
+                </transition>
+              </div>
+            </div>
+            
+            <div v-else class="empty-room-state">
+              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+                <line x1="3" y1="9" x2="21" y2="9"/>
+              </svg>
+              <p class="empty-title">No rooms yet</p>
+              <p class="empty-hint">Create your first room using the form</p>
+            </div>
+          </div>
+
+          <!-- Room Form -->
+          <div class="room-form-section">
+            <div class="room-form-header">
+              <span class="form-title">{{ selectedRoomId ? 'Edit Room' : 'Create New Room' }}</span>
+              <button 
+                v-if="selectedRoomId" 
+                type="button" 
+                class="form-cancel-btn"
+                @click="resetRoomForm"
+              >
+                Cancel Edit
+              </button>
+            </div>
+            
+            <form class="room-form" @submit.prevent="submitRoom">
+              <div class="form-group">
+                <label class="form-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M4 21v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/>
+                    <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/>
+                    <path d="M3 7l9-4 9 4"/>
+                  </svg>
+                  Room Name
+                </label>
+                <input
+                  class="form-input"
+                  v-model="roomForm.name"
+                  type="text"
+                  placeholder="e.g., Living Room, Kitchen, Office..."
+                  required
+                />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <circle cx="12" cy="12" r="4"/>
+                  </svg>
+                  Color
+                </label>
+                <div class="color-picker-row">
+                  <input class="color-picker" v-model="roomForm.color" type="color" />
+                  <div class="color-presets">
+                    <button 
+                      v-for="color in colorPresets" 
+                      :key="color"
+                      type="button"
+                      class="color-preset"
+                      :class="{ 'selected': roomForm.color === color }"
+                      :style="{ backgroundColor: color }"
+                      @click="roomForm.color = color"
+                    ></button>
+                  </div>
+                  <input
+                    class="color-text-input"
+                    v-model="roomForm.color"
+                    type="text"
+                    placeholder="#2563eb"
+                  />
                 </div>
               </div>
-              <div class="room-item-actions">
-                <button type="button" class="room-assign-btn" @click="activateRoomAssignment(room)">
-                  Assign Cells
-                </button>
-                <button type="button" class="room-edit-btn" @click="startEditRoom(room)">
-                  Edit
+
+              <div class="form-group">
+                <label class="form-label">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="17" y1="10" x2="3" y2="10"/>
+                    <line x1="21" y1="6" x2="3" y2="6"/>
+                    <line x1="21" y1="14" x2="3" y2="14"/>
+                    <line x1="17" y1="18" x2="3" y2="18"/>
+                  </svg>
+                  Description <span class="optional-tag">(optional)</span>
+                </label>
+                <textarea
+                  class="form-textarea"
+                  v-model="roomForm.description"
+                  rows="2"
+                  placeholder="What is this room used for?"
+                ></textarea>
+              </div>
+
+              <div class="form-actions">
+                <button type="submit" class="submit-btn" :disabled="isRoomSaving">
+                  <svg v-if="!isRoomSaving" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path v-if="selectedRoomId" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                    <polyline v-if="selectedRoomId" points="17 21 17 13 7 13 7 21"/>
+                    <polyline v-if="selectedRoomId" points="7 3 7 8 15 8"/>
+                    <circle v-if="!selectedRoomId" cx="12" cy="12" r="10"/>
+                    <line v-if="!selectedRoomId" x1="12" y1="8" x2="12" y2="16"/>
+                    <line v-if="!selectedRoomId" x1="8" y1="12" x2="16" y2="12"/>
+                  </svg>
+                  <span v-if="isRoomSaving" class="spinner"></span>
+                  {{ isRoomSaving ? 'Saving...' : (selectedRoomId ? 'Save Changes' : 'Create Room') }}
                 </button>
                 <button
                   type="button"
-                  class="room-delete-btn"
+                  class="reset-btn"
                   :disabled="isRoomSaving"
-                  @click="deleteRoomAction(room)"
+                  @click="resetRoomForm"
                 >
-                  Delete
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                  </svg>
+                  Clear
                 </button>
               </div>
-            </div>
+
+              <transition name="message-fade">
+                <div v-if="roomMessage" :class="['form-message', roomMessage.type]">
+                  <svg v-if="roomMessage.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  </svg>
+                  {{ roomMessage.text }}
+                </div>
+              </transition>
+            </form>
           </div>
-          <div v-else class="empty-state room-empty">
-            <p>No rooms yet. Create the first one below.</p>
-          </div>
-
-          <form class="room-form" @submit.prevent="submitRoom">
-            <label class="room-label">Room name</label>
-            <input
-              class="room-input"
-              v-model="roomForm.name"
-              type="text"
-              placeholder="e.g., Kitchen"
-              required
-            />
-
-            <label class="room-label">Color</label>
-            <div class="room-color-row">
-              <input class="room-color" v-model="roomForm.color" type="color" />
-              <input
-                class="room-input color-text"
-                v-model="roomForm.color"
-                type="text"
-                placeholder="#2563eb"
-              />
-            </div>
-
-            <label class="room-label">Description</label>
-            <textarea
-              class="room-textarea"
-              v-model="roomForm.description"
-              rows="2"
-              placeholder="Short description"
-            ></textarea>
-
-            <div class="room-actions">
-              <button type="submit" class="room-primary" :disabled="isRoomSaving">
-                {{ selectedRoomId ? 'Update Room' : 'Create Room' }}
-              </button>
-              <button
-                type="button"
-                class="room-secondary"
-                :disabled="isRoomSaving"
-                @click="resetRoomForm"
-              >
-                Clear
-              </button>
-            </div>
-
-            <p v-if="roomMessage" :class="['room-message', roomMessage.type]">
-              {{ roomMessage.text }}
-            </p>
-          </form>
         </div>
       </div>
+
+      <!-- Delete Confirmation Modal -->
+      <transition name="modal-fade">
+        <div v-if="deleteConfirmRoom" class="modal-overlay" @click.self="deleteConfirmRoom = null">
+          <div class="delete-modal">
+            <div class="modal-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="12" y1="8" x2="12" y2="12"/>
+                <line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+            </div>
+            <h3 class="modal-title">Delete Room?</h3>
+            <p class="modal-text">
+              Are you sure you want to delete <strong>{{ deleteConfirmRoom?.name }}</strong>? 
+              This will also remove all cell assignments for this room.
+            </p>
+            <div class="modal-actions">
+              <button class="modal-btn cancel" @click="deleteConfirmRoom = null">Cancel</button>
+              <button class="modal-btn confirm" @click="executeDeleteRoom">Delete Room</button>
+            </div>
+          </div>
+        </div>
+      </transition>
 
       <!-- Bottom Buttons -->
       <div class="editor-footer">
@@ -307,6 +509,23 @@ const mouseDownCell = ref(null)
 const dragThreshold = 5
 const mouseDownPosition = ref({ x: 0, y: 0 })
 const currentDragArea = ref(new Set())
+
+// Tooltip state
+const tooltipVisible = ref(false)
+const tooltipRoom = ref(null)
+const tooltipCell = ref(null)
+const tooltipPosition = ref({ x: 0, y: 0 })
+let tooltipTimeout = null
+
+// UI state for room manager
+const expandedRooms = ref(new Set())
+const deleteConfirmRoom = ref(null)
+
+// Color presets for room form
+const colorPresets = [
+  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+]
 
 // Initialize filled cells from props (fallback)
 if (props.floor.cells && Array.isArray(props.floor.cells)) {
@@ -397,45 +616,6 @@ const upsertLocalRoom = (roomLike) => {
     rooms.value.splice(existingIdx, 1, next)
   } else {
     rooms.value.push(next)
-  }
-}
-
-const deleteRoomAction = async (room) => {
-  if (!room || room.id == null) {
-    roomMessage.value = { text: 'Room id is required to delete.', type: 'error' }
-    return
-  }
-
-  if (isRoomSaving.value) return
-  isRoomSaving.value = true
-
-  try {
-    await deleteRoom(room.id)
-    // Remove locally
-    rooms.value = rooms.value.filter((r) => r.id !== room.id)
-
-    const refreshed = await refreshRoomsFromApi()
-    if (!refreshed) {
-      roomMessage.value = {
-        text: 'Room deleted. Backend did not return rooms list; showing local state.',
-        type: 'info',
-      }
-    } else {
-      roomMessage.value = { text: 'Room deleted successfully', type: 'success' }
-    }
-
-    // Show confirmation alert and navigate to main page
-    setTimeout(() => {
-      alert('Room deletion confirmed')
-      emit('back')
-    }, 1000)
-  } catch (err) {
-    roomMessage.value = { text: err?.message || 'Failed to delete room', type: 'error' }
-  } finally {
-    isRoomSaving.value = false
-    setTimeout(() => {
-      roomMessage.value = null
-    }, 3500)
   }
 }
 
@@ -651,6 +831,128 @@ const filledCells = computed(() => {
   return filledCellsData.value
 })
 
+// Computed: total cells assigned to any room
+const totalAssignedCells = computed(() => {
+  return cellsWithRooms.value.size
+})
+
+// Get cell count for a specific room
+const getRoomCellCount = (roomId) => {
+  let count = 0
+  cellsWithRooms.value.forEach((rid) => {
+    if (rid === roomId) count++
+  })
+  return count
+}
+
+// Tooltip style computed
+const tooltipStyle = computed(() => {
+  return {
+    left: `${tooltipPosition.value.x}px`,
+    top: `${tooltipPosition.value.y}px`
+  }
+})
+
+// Room expansion toggle
+const toggleRoomExpand = (roomId) => {
+  if (expandedRooms.value.has(roomId)) {
+    expandedRooms.value.delete(roomId)
+  } else {
+    expandedRooms.value.add(roomId)
+  }
+}
+
+const collapseAllRooms = () => {
+  if (expandedRooms.value.size > 0) {
+    expandedRooms.value.clear()
+  } else {
+    rooms.value.forEach(r => expandedRooms.value.add(r.id))
+  }
+}
+
+// Delete confirmation
+const confirmDeleteRoom = (room) => {
+  deleteConfirmRoom.value = room
+}
+
+const executeDeleteRoom = async () => {
+  if (!deleteConfirmRoom.value) return
+  const room = deleteConfirmRoom.value
+  deleteConfirmRoom.value = null
+  
+  if (!room || room.id == null) {
+    roomMessage.value = { text: 'Room id is required to delete.', type: 'error' }
+    return
+  }
+
+  if (isRoomSaving.value) return
+  isRoomSaving.value = true
+
+  try {
+    await deleteRoom(room.id)
+    rooms.value = rooms.value.filter((r) => r.id !== room.id)
+    
+    // Remove cell assignments for this room
+    const newCellsWithRooms = new Map()
+    cellsWithRooms.value.forEach((roomId, cellKey) => {
+      if (roomId !== room.id) {
+        newCellsWithRooms.set(cellKey, roomId)
+      }
+    })
+    cellsWithRooms.value = newCellsWithRooms
+
+    const refreshed = await refreshRoomsFromApi()
+    if (!refreshed) {
+      roomMessage.value = {
+        text: 'Room deleted successfully',
+        type: 'success',
+      }
+    } else {
+      roomMessage.value = { text: 'Room deleted successfully', type: 'success' }
+    }
+  } catch (err) {
+    roomMessage.value = { text: err?.message || 'Failed to delete room', type: 'error' }
+  } finally {
+    isRoomSaving.value = false
+    setTimeout(() => {
+      roomMessage.value = null
+    }, 3500)
+  }
+}
+
+// Tooltip handlers
+const handleCellMouseEnter = (cell) => {
+  handleMouseEnter(cell)
+  
+  const room = getCellRoom(cell)
+  if (room) {
+    clearTimeout(tooltipTimeout)
+    tooltipTimeout = setTimeout(() => {
+      tooltipRoom.value = room
+      tooltipCell.value = cell
+      tooltipVisible.value = true
+    }, 300)
+  }
+}
+
+const handleCellMouseMove = (cell, event) => {
+  if (tooltipVisible.value || tooltipTimeout) {
+    const rect = event.target.closest('.grid-wrapper').getBoundingClientRect()
+    tooltipPosition.value = {
+      x: event.clientX - rect.left + 15,
+      y: event.clientY - rect.top - 10
+    }
+  }
+}
+
+const handleCellMouseLeave = () => {
+  clearTimeout(tooltipTimeout)
+  tooltipTimeout = null
+  tooltipVisible.value = false
+  tooltipRoom.value = null
+  tooltipCell.value = null
+}
+
 const allCells = computed(() => {
   const cells = []
   const filledMap = new Map(filledCells.value.map((cell) => [`${cell.x}-${cell.y}`, true]))
@@ -769,8 +1071,9 @@ const getCellBorderStyle = (cell) => {
     // Non-room cells get standard borders and margin
     return {
       margin: '2px',
-      border: '2px solid #6b7280',
+      border: '2px solid #4b5563',
       boxSizing: 'border-box',
+      borderRadius: '4px',
     }
   }
 
@@ -784,22 +1087,36 @@ const getCellBorderStyle = (cell) => {
   const hasLeft = cellsWithRooms.value.get(`${x - 1}-${y}`) === roomId
   const hasRight = cellsWithRooms.value.get(`${x + 1}-${y}`) === roomId
 
-  const borderWidth = '3px'
+  // Create a darker shade of the room color for the border
   const borderColor = cellRoom.color
-  // Use transparent for internal edges to maintain consistent cell sizing
-  const transparentBorder = `${borderWidth} solid transparent`
-  const visibleBorder = `${borderWidth} solid ${borderColor}`
+  
+  // Calculate border widths - thicker outer borders for definition
+  const outerBorderWidth = '3px'
+  const transparentBorder = `${outerBorderWidth} solid transparent`
+  const visibleBorder = `${outerBorderWidth} solid ${borderColor}`
+  
+  // Calculate border radius for corners
+  const cornerRadius = '6px'
+  const noRadius = '0px'
+  
+  // Determine which corners should be rounded
+  const topLeft = !hasTop && !hasLeft ? cornerRadius : noRadius
+  const topRight = !hasTop && !hasRight ? cornerRadius : noRadius
+  const bottomLeft = !hasBottom && !hasLeft ? cornerRadius : noRadius
+  const bottomRight = !hasBottom && !hasRight ? cornerRadius : noRadius
 
   return {
     borderTop: hasTop ? transparentBorder : visibleBorder,
     borderBottom: hasBottom ? transparentBorder : visibleBorder,
     borderLeft: hasLeft ? transparentBorder : visibleBorder,
     borderRight: hasRight ? transparentBorder : visibleBorder,
+    borderRadius: `${topLeft} ${topRight} ${bottomRight} ${bottomLeft}`,
     backgroundColor: cellRoom.color,
     margin: '0',
     padding: '0',
     boxSizing: 'border-box',
-    boxShadow: 'none', // Override any inherited box-shadow
+    boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
+    filter: 'saturate(0.9)',
   }
 }
 
@@ -1567,23 +1884,28 @@ const goBack = () => {
 }
 
 .grid-cell-filled {
-  background-color: #3b82f6;
-  color: white;
-  box-shadow: 0 4px 10px -2px rgba(59, 130, 246, 0.5);
+  background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.15),
+    0 2px 4px rgba(37, 99, 235, 0.3);
 }
 
 .grid-cell-filled:hover {
-  box-shadow: 0 6px 15px -2px rgba(59, 130, 246, 0.7);
+  background: linear-gradient(145deg, #60a5fa 0%, #3b82f6 100%);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 4px 8px rgba(37, 99, 235, 0.4);
 }
 
 .grid-cell-empty {
-  background-color: #4b5563;
-  color: #9ca3af;
+  background-color: #374151;
+  color: #6b7280;
 }
 
 .grid-cell-empty:hover {
-  background-color: #5a6575;
-  border-color: #9ca3af;
+  background-color: #4b5563;
+  color: #9ca3af;
 }
 
 /* Selection Highlight */
@@ -1662,18 +1984,24 @@ const goBack = () => {
   }
 }
 
-/* Room-assigned cell styles */
+/* Room-assigned cell styles - Clean and Natural */
 .grid-cell-has-room {
-  color: white;
-  font-weight: 700;
-  box-shadow: none !important;
-  border: none;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  position: relative;
+}
+
+.grid-cell-has-room::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
+  pointer-events: none;
 }
 
 .grid-cell-has-room:hover {
-  box-shadow: none !important;
-  filter: brightness(1.1);
-  transform: none;
+  filter: brightness(1.15) saturate(1.1) !important;
   z-index: 10;
 }
 
@@ -1682,16 +2010,25 @@ const goBack = () => {
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
   color: #1f2937 !important;
   box-shadow:
-    0 0 20px rgba(251, 191, 36, 0.7),
-    inset 0 0 10px rgba(255, 255, 255, 0.3) !important;
-  transform: scale(1.05);
+    0 0 0 2px rgba(251, 191, 36, 0.5),
+    0 4px 12px rgba(251, 191, 36, 0.4) !important;
+  transform: scale(1.02);
   z-index: 5;
   font-weight: 800;
 }
 
 .grid-cell-room-current {
-  opacity: 0.6;
-  box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+  opacity: 0.7;
+  position: relative;
+}
+
+.grid-cell-room-current::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  border-radius: inherit;
+  pointer-events: none;
 }
 
 .cell-text {
@@ -1791,13 +2128,14 @@ const goBack = () => {
   line-height: 1.4;
 }
 
-/* Room Manager */
+/* Room Manager - Redesigned */
 .room-manager-card {
   margin: 1.5rem 0;
-  background-color: #111827;
-  border-radius: 0.75rem;
-  border: 1px solid #374151;
-  padding: 1rem;
+  background: linear-gradient(145deg, #111827 0%, #1a2332 100%);
+  border-radius: 1rem;
+  border: 1px solid #2d3748;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 .room-manager-header {
@@ -1805,270 +2143,847 @@ const goBack = () => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-.room-subtitle {
-  color: #9ca3af;
-  margin: 0.25rem 0 0 0;
-  font-size: 0.9rem;
-}
-
-.room-badge {
-  background-color: #1f2937;
-  color: #d1d5db;
-  border: 1px solid #4b5563;
-  border-radius: 9999px;
-  padding: 0.35rem 0.75rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.room-columns {
-  display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
-  gap: 1rem;
-}
-
-.room-list {
-  background-color: #1f2937;
-  border: 1px solid #374151;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  max-height: 380px;
-  overflow-y: auto;
-}
-
-.room-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.5rem 0.35rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid #2d3748;
 }
 
-.room-item:last-child {
-  border-bottom: none;
-}
-
-.room-left {
-  display: flex;
-  gap: 0.65rem;
-  align-items: flex-start;
-}
-
-.room-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 9999px;
-  border: 1px solid #0f172a;
-  flex-shrink: 0;
-  margin-top: 4px;
-}
-
-.room-meta {
+.room-header-left {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
 }
 
-.room-item-actions {
+.room-manager-header .section-title {
   display: flex;
-  gap: 0.4rem;
-  flex-shrink: 0;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.room-icon {
+  width: 24px;
+  height: 24px;
+  color: #60a5fa;
+}
+
+.room-subtitle {
+  color: #94a3b8;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.room-header-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.room-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #1f2937;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #374151;
+}
+
+.stat-number {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.stat-label {
+  font-size: 0.7rem;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.room-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+/* Room List Section */
+.room-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room-list-header {
+  display: flex;
+  justify-content: space-between;
   align-items: center;
 }
 
-.room-assign-btn {
-  background-color: #10b981;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  padding: 0.35rem 0.65rem;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
-  font-size: 0.8rem;
-}
-
-.room-assign-btn:hover {
-  background-color: #059669;
-}
-
-.room-name {
-  color: #e5e7eb;
-  font-weight: 700;
-  font-size: 0.95rem;
-}
-
-.room-desc {
-  color: #9ca3af;
+.list-title {
   font-size: 0.85rem;
-  line-height: 1.4;
-}
-
-.room-edit-btn {
-  background-color: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 0.375rem;
-  padding: 0.35rem 0.65rem;
-  cursor: pointer;
-  transition: all 0.2s;
   font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.room-edit-btn:hover {
-  background-color: #1d4ed8;
-}
-
-.room-delete-btn {
-  background-color: #b91c1c;
-  color: white;
+.collapse-all-btn {
+  font-size: 0.75rem;
+  color: #60a5fa;
+  background: none;
   border: none;
-  border-radius: 0.375rem;
-  padding: 0.35rem 0.65rem;
   cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
   transition: all 0.2s;
-  font-weight: 600;
 }
 
-.room-delete-btn:hover:not(:disabled) {
-  background-color: #991b1b;
+.collapse-all-btn:hover {
+  background-color: rgba(96, 165, 250, 0.1);
 }
 
-.room-delete-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
+.room-list {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 0.75rem;
+  padding: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
-.room-empty {
-  margin: 0;
-}
-
-.room-form {
+/* Room Card */
+.room-card {
   background-color: #1f2937;
   border: 1px solid #374151;
   border-radius: 0.5rem;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.room-card:hover {
+  border-color: #4b5563;
+}
+
+.room-card-editing {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+}
+
+.room-card-assigning {
+  border-color: #10b981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.3);
+}
+
+.room-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 0.75rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.room-card-header:hover {
+  background-color: #2d3748;
+}
+
+.room-card-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.room-color-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.room-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.room-card-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.room-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.room-cell-count {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.room-status-badge {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.room-status-badge.editing {
+  background-color: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+}
+
+.room-status-badge.assigning {
+  background-color: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+}
+
+.room-expand-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-radius: 4px;
+}
+
+.room-expand-btn:hover {
+  background-color: #374151;
+  color: #f1f5f9;
+}
+
+.room-expand-btn svg {
+  width: 16px;
+  height: 16px;
+  transition: transform 0.2s;
+}
+
+.room-expand-btn.expanded svg {
+  transform: rotate(180deg);
+}
+
+.room-card-body {
+  padding: 0 0.75rem 0.75rem;
+  border-top: 1px solid #2d3748;
+}
+
+.room-card-desc {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin: 0.75rem 0;
+  line-height: 1.4;
+}
+
+.room-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.room-action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.room-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.room-action-btn.assign {
+  background-color: #065f46;
+  color: #34d399;
+}
+
+.room-action-btn.assign:hover {
+  background-color: #047857;
+}
+
+.room-action-btn.assign.active {
+  background-color: #10b981;
+  color: white;
+}
+
+.room-action-btn.edit {
+  background-color: #1e40af;
+  color: #93c5fd;
+}
+
+.room-action-btn.edit:hover {
+  background-color: #1d4ed8;
+}
+
+.room-action-btn.delete {
+  background-color: #7f1d1d;
+  color: #fca5a5;
+}
+
+.room-action-btn.delete:hover:not(:disabled) {
+  background-color: #991b1b;
+}
+
+.room-action-btn.delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Empty Room State */
+.empty-room-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  background-color: #1a2332;
+  border: 2px dashed #374151;
+  border-radius: 0.75rem;
+  text-align: center;
+}
+
+.empty-icon {
+  width: 48px;
+  height: 48px;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+}
+
+.empty-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin: 0 0 0.25rem;
+}
+
+.empty-hint {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* Room Form Section */
+.room-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.room-form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.form-cancel-btn {
+  font-size: 0.75rem;
+  color: #f87171;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.form-cancel-btn:hover {
+  background-color: rgba(248, 113, 113, 0.1);
+}
+
+.room-form {
+  background-color: #1a2332;
+  border: 1px solid #2d3748;
+  border-radius: 0.75rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
 
-.room-label {
-  color: #d1d5db;
+.form-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
   font-weight: 600;
+  color: #e2e8f0;
+}
+
+.form-label svg {
+  width: 16px;
+  height: 16px;
+  color: #60a5fa;
+}
+
+.optional-tag {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-weight: 400;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  color: #f1f5f9;
   font-size: 0.9rem;
+  transition: all 0.2s;
 }
 
-.room-input {
-  width: 100%;
-  padding: 0.65rem;
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  border-radius: 0.4rem;
-  color: white;
+.form-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
 
-.room-textarea {
+.form-input::placeholder {
+  color: #6b7280;
+}
+
+.form-textarea {
   width: 100%;
-  padding: 0.65rem;
-  background-color: #374151;
-  border: 1px solid #4b5563;
-  border-radius: 0.4rem;
-  color: white;
+  padding: 0.75rem;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  color: #f1f5f9;
+  font-size: 0.9rem;
   resize: vertical;
   min-height: 80px;
+  transition: all 0.2s;
 }
 
-.room-color-row {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  gap: 0.5rem;
+.form-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.form-textarea::placeholder {
+  color: #6b7280;
+}
+
+/* Color Picker */
+.color-picker-row {
+  display: flex;
   align-items: center;
+  gap: 0.75rem;
 }
 
-.room-color {
-  height: 42px;
-  border: 1px solid #4b5563;
-  border-radius: 0.4rem;
-  background-color: #374151;
+.color-picker {
+  width: 48px;
+  height: 48px;
+  border: 2px solid #374151;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  background-color: transparent;
+  padding: 2px;
 }
 
-.color-text {
-  font-family: 'Courier New', monospace;
+.color-picker::-webkit-color-swatch-wrapper {
+  padding: 0;
 }
 
-.room-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
-.room-primary {
-  background-color: #10b981;
-  color: white;
+.color-picker::-webkit-color-swatch {
   border: none;
-  padding: 0.65rem;
-  border-radius: 0.4rem;
+  border-radius: 0.35rem;
+}
+
+.color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  flex: 1;
+}
+
+.color-preset {
+  width: 24px;
+  height: 24px;
+  border: 2px solid transparent;
+  border-radius: 4px;
   cursor: pointer;
-  font-weight: 700;
   transition: all 0.2s;
 }
 
-.room-primary:disabled {
-  background-color: #6b7280;
-  cursor: not-allowed;
+.color-preset:hover {
+  transform: scale(1.15);
 }
 
-.room-primary:not(:disabled):hover {
-  background-color: #0f9f75;
+.color-preset.selected {
+  border-color: white;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
-.room-secondary {
-  background-color: #374151;
-  color: #e5e7eb;
-  border: 1px solid #4b5563;
-  padding: 0.65rem;
-  border-radius: 0.4rem;
-  cursor: pointer;
+.color-text-input {
+  width: 90px;
+  padding: 0.5rem;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 0.375rem;
+  color: #f1f5f9;
+  font-size: 0.8rem;
+  font-family: monospace;
+}
+
+.color-text-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+/* Form Actions */
+.form-actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.submit-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  font-size: 0.9rem;
   font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
   transition: all 0.2s;
 }
 
-.room-secondary:hover:not(:disabled) {
-  background-color: #4b5563;
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
 }
 
-.room-secondary:disabled {
+.submit-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
 }
 
-.room-message {
-  margin: 0.25rem 0 0 0;
-  padding: 0.5rem 0.75rem;
-  border-radius: 0.4rem;
-  font-weight: 600;
+.submit-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.reset-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.75rem 1rem;
+  background-color: #374151;
+  color: #d1d5db;
   font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid #4b5563;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.room-message.success {
-  background-color: #064e3b;
+.reset-btn:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.reset-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.reset-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Form Message */
+.form-message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.form-message svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.form-message.success {
+  background-color: rgba(16, 185, 129, 0.15);
   color: #34d399;
-  border: 1px solid #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
 }
 
-.room-message.error {
-  background-color: #7f1d1d;
-  color: #fca5a5;
-  border: 1px solid #ef4444;
+.form-message.error {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.form-message.info {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+/* Message Fade Animation */
+.message-fade-enter-active,
+.message-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.message-fade-enter-from,
+.message-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Expand Animation */
+.expand-enter-active,
+.expand-leave-active {
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+.expand-enter-from,
+.expand-leave-to {
+  opacity: 0;
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.expand-enter-to,
+.expand-leave-from {
+  max-height: 200px;
+}
+
+/* Delete Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.delete-modal {
+  background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
+  border: 1px solid #374151;
+  border-radius: 1rem;
+  padding: 2rem;
+  max-width: 400px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.modal-icon {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 1rem;
+  background-color: rgba(239, 68, 68, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-icon svg {
+  width: 28px;
+  height: 28px;
+  color: #f87171;
+}
+
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0 0 0.75rem;
+}
+
+.modal-text {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin: 0 0 1.5rem;
+  line-height: 1.5;
+}
+
+.modal-text strong {
+  color: #f1f5f9;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+}
+
+.modal-btn {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modal-btn.cancel {
+  background-color: #374151;
+  color: #d1d5db;
+}
+
+.modal-btn.cancel:hover {
+  background-color: #4b5563;
+}
+
+.modal-btn.confirm {
+  background-color: #dc2626;
+  color: white;
+}
+
+.modal-btn.confirm:hover {
+  background-color: #b91c1c;
+}
+
+/* Modal Fade Animation */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.modal-fade-enter-from,
+.modal-fade-leave-to {
+  opacity: 0;
+}
+
+.modal-fade-enter-from .delete-modal,
+.modal-fade-leave-to .delete-modal {
+  transform: scale(0.9);
+}
+
+/* Room Tooltip */
+.room-tooltip {
+  position: absolute;
+  background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  min-width: 150px;
+  max-width: 250px;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.35rem;
+}
+
+.tooltip-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.tooltip-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.tooltip-desc {
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 0.35rem;
+  line-height: 1.3;
+}
+
+.tooltip-coords {
+  font-size: 0.7rem;
+  color: #6b7280;
+  font-family: monospace;
+}
+
+/* Tooltip Fade Animation */
+.tooltip-fade-enter-active,
+.tooltip-fade-leave-active {
+  transition: all 0.15s ease;
+}
+
+.tooltip-fade-enter-from,
+.tooltip-fade-leave-to {
+  opacity: 0;
+  transform: translateY(5px);
 }
 
 /* Mobile Summary */
@@ -2350,12 +3265,63 @@ const goBack = () => {
     grid-template-columns: 1fr;
   }
 
-  .room-actions {
-    grid-template-columns: 1fr;
+  .room-header-stats {
+    flex-direction: row;
+    gap: 0.5rem;
   }
 
-  .room-color-row {
-    grid-template-columns: 1fr;
+  .room-stat {
+    padding: 0.35rem 0.75rem;
+  }
+
+  .stat-number {
+    font-size: 1rem;
+  }
+
+  .room-card-actions {
+    flex-direction: column;
+  }
+
+  .room-action-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .color-picker-row {
+    flex-wrap: wrap;
+  }
+
+  .color-presets {
+    order: 1;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .color-text-input {
+    order: 2;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .form-actions {
+    flex-direction: column;
+  }
+
+  .submit-btn,
+  .reset-btn {
+    width: 100%;
+  }
+
+  .delete-modal {
+    padding: 1.5rem;
+  }
+
+  .modal-actions {
+    flex-direction: column;
+  }
+
+  .modal-btn {
+    width: 100%;
   }
 }
 </style>
