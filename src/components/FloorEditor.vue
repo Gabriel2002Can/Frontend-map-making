@@ -115,20 +115,12 @@
               <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
             </div>
           </div>
-          
+
           <!-- Custom Room Tooltip -->
           <transition name="tooltip-fade">
-            <div 
-              v-if="tooltipVisible && tooltipRoom" 
-              class="room-tooltip"
-              :style="tooltipStyle"
-            >
-              <div class="tooltip-header">
-                <span class="tooltip-color" :style="{ backgroundColor: tooltipRoom.color }"></span>
-                <span class="tooltip-name">{{ tooltipRoom.name }}</span>
-              </div>
-              <div v-if="tooltipRoom.description" class="tooltip-desc">{{ tooltipRoom.description }}</div>
-              <div class="tooltip-coords">Cell ({{ tooltipCell?.x + 1 }}, {{ tooltipCell?.y + 1 }})</div>
+            <div v-if="tooltipVisible && tooltipRoom" class="room-tooltip" :style="tooltipStyle">
+              <span class="tooltip-color" :style="{ backgroundColor: tooltipRoom.color }"></span>
+              <span class="tooltip-name">{{ tooltipRoom.name }}</span>
             </div>
           </transition>
         </div>
@@ -170,11 +162,17 @@
         <div class="room-manager-header">
           <div class="room-header-left">
             <h3 class="section-title">
-              <svg class="room-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7" rx="1"/>
-                <rect x="14" y="3" width="7" height="7" rx="1"/>
-                <rect x="3" y="14" width="7" height="7" rx="1"/>
-                <rect x="14" y="14" width="7" height="7" rx="1"/>
+              <svg
+                class="room-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
               </svg>
               Room Manager
             </h3>
@@ -197,69 +195,80 @@
           <div class="room-list-section">
             <div class="room-list-header">
               <span class="list-title">Your Rooms</span>
-              <button 
-                v-if="rooms.length > 0" 
-                type="button" 
+              <button
+                v-if="rooms.length > 0"
+                type="button"
                 class="collapse-all-btn"
                 @click="collapseAllRooms"
               >
                 {{ expandedRooms.size > 0 ? 'Collapse All' : 'Expand All' }}
               </button>
             </div>
-            
+
             <div class="room-list" v-if="rooms.length > 0">
-              <div 
-                v-for="room in rooms" 
-                :key="room.id || room.name" 
+              <div
+                v-for="room in rooms"
+                :key="room.id || room.name"
                 class="room-card"
-                :class="{ 
+                :class="{
                   'room-card-expanded': expandedRooms.has(room.id),
                   'room-card-editing': selectedRoomId === room.id,
-                  'room-card-assigning': activeRoomId === room.id
+                  'room-card-assigning': activeRoomId === room.id,
                 }"
               >
                 <div class="room-card-header" @click="toggleRoomExpand(room.id)">
                   <div class="room-card-left">
-                    <span class="room-color-indicator" :style="{ backgroundColor: room.color || '#3b82f6' }"></span>
+                    <span
+                      class="room-color-indicator"
+                      :style="{ backgroundColor: room.color || '#3b82f6' }"
+                    ></span>
                     <div class="room-card-info">
                       <div class="room-card-name">{{ room.name || 'Untitled room' }}</div>
                       <div class="room-card-meta">
                         <span class="room-cell-count">{{ getRoomCellCount(room.id) }} cells</span>
-                        <span v-if="activeRoomId === room.id" class="room-status-badge assigning">Assigning</span>
-                        <span v-else-if="selectedRoomId === room.id" class="room-status-badge editing">Editing</span>
+                        <span v-if="activeRoomId === room.id" class="room-status-badge assigning"
+                          >Assigning</span
+                        >
+                        <span
+                          v-else-if="selectedRoomId === room.id"
+                          class="room-status-badge editing"
+                          >Editing</span
+                        >
                       </div>
                     </div>
                   </div>
-                  <button class="room-expand-btn" :class="{ 'expanded': expandedRooms.has(room.id) }">
+                  <button class="room-expand-btn" :class="{ expanded: expandedRooms.has(room.id) }">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <polyline points="6 9 12 15 18 9"/>
+                      <polyline points="6 9 12 15 18 9" />
                     </svg>
                   </button>
                 </div>
-                
+
                 <transition name="expand">
                   <div v-if="expandedRooms.has(room.id)" class="room-card-body">
-                    <p class="room-card-desc">{{ room.description || 'No description provided' }}</p>
+                    <p class="room-card-desc">
+                      {{ room.description || 'No description provided' }}
+                    </p>
                     <div class="room-card-actions">
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         class="room-action-btn assign"
-                        :class="{ 'active': activeRoomId === room.id }"
+                        :class="{ active: activeRoomId === room.id }"
                         @click.stop="activateRoomAssignment(room)"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M12 5v14M5 12h14"/>
+                          <path d="M12 5v14M5 12h14" />
                         </svg>
                         {{ activeRoomId === room.id ? 'Assigning...' : 'Assign Cells' }}
                       </button>
-                      <button 
-                        type="button" 
+                      <button
+                        type="button"
                         class="room-action-btn edit"
                         @click.stop="startEditRoom(room)"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                         </svg>
                         Edit
                       </button>
@@ -270,8 +279,10 @@
                         @click.stop="confirmDeleteRoom(room)"
                       >
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                          <polyline points="3 6 5 6 21 6" />
+                          <path
+                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                          />
                         </svg>
                         Delete
                       </button>
@@ -280,12 +291,18 @@
                 </transition>
               </div>
             </div>
-            
+
             <div v-else class="empty-room-state">
-              <svg class="empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                <rect x="3" y="3" width="18" height="18" rx="2"/>
-                <line x1="9" y1="3" x2="9" y2="21"/>
-                <line x1="3" y1="9" x2="21" y2="9"/>
+              <svg
+                class="empty-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+                <line x1="3" y1="9" x2="21" y2="9" />
               </svg>
               <p class="empty-title">No rooms yet</p>
               <p class="empty-hint">Create your first room using the form</p>
@@ -296,23 +313,23 @@
           <div class="room-form-section">
             <div class="room-form-header">
               <span class="form-title">{{ selectedRoomId ? 'Edit Room' : 'Create New Room' }}</span>
-              <button 
-                v-if="selectedRoomId" 
-                type="button" 
+              <button
+                v-if="selectedRoomId"
+                type="button"
                 class="form-cancel-btn"
                 @click="resetRoomForm"
               >
                 Cancel Edit
               </button>
             </div>
-            
+
             <form class="room-form" @submit.prevent="submitRoom">
               <div class="form-group">
                 <label class="form-label">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M4 21v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/>
-                    <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4"/>
-                    <path d="M3 7l9-4 9 4"/>
+                    <path d="M4 21v-7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7" />
+                    <path d="M9 21v-4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v4" />
+                    <path d="M3 7l9-4 9 4" />
                   </svg>
                   Room Name
                 </label>
@@ -328,20 +345,20 @@
               <div class="form-group">
                 <label class="form-label">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <circle cx="12" cy="12" r="4"/>
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="4" />
                   </svg>
                   Color
                 </label>
                 <div class="color-picker-row">
                   <input class="color-picker" v-model="roomForm.color" type="color" />
                   <div class="color-presets">
-                    <button 
-                      v-for="color in colorPresets" 
+                    <button
+                      v-for="color in colorPresets"
                       :key="color"
                       type="button"
                       class="color-preset"
-                      :class="{ 'selected': roomForm.color === color }"
+                      :class="{ selected: roomForm.color === color }"
                       :style="{ backgroundColor: color }"
                       @click="roomForm.color = color"
                     ></button>
@@ -358,10 +375,10 @@
               <div class="form-group">
                 <label class="form-label">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <line x1="17" y1="10" x2="3" y2="10"/>
-                    <line x1="21" y1="6" x2="3" y2="6"/>
-                    <line x1="21" y1="14" x2="3" y2="14"/>
-                    <line x1="17" y1="18" x2="3" y2="18"/>
+                    <line x1="17" y1="10" x2="3" y2="10" />
+                    <line x1="21" y1="6" x2="3" y2="6" />
+                    <line x1="21" y1="14" x2="3" y2="14" />
+                    <line x1="17" y1="18" x2="3" y2="18" />
                   </svg>
                   Description <span class="optional-tag">(optional)</span>
                 </label>
@@ -375,16 +392,25 @@
 
               <div class="form-actions">
                 <button type="submit" class="submit-btn" :disabled="isRoomSaving">
-                  <svg v-if="!isRoomSaving" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path v-if="selectedRoomId" d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                    <polyline v-if="selectedRoomId" points="17 21 17 13 7 13 7 21"/>
-                    <polyline v-if="selectedRoomId" points="7 3 7 8 15 8"/>
-                    <circle v-if="!selectedRoomId" cx="12" cy="12" r="10"/>
-                    <line v-if="!selectedRoomId" x1="12" y1="8" x2="12" y2="16"/>
-                    <line v-if="!selectedRoomId" x1="8" y1="12" x2="16" y2="12"/>
+                  <svg
+                    v-if="!isRoomSaving"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      v-if="selectedRoomId"
+                      d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+                    />
+                    <polyline v-if="selectedRoomId" points="17 21 17 13 7 13 7 21" />
+                    <polyline v-if="selectedRoomId" points="7 3 7 8 15 8" />
+                    <circle v-if="!selectedRoomId" cx="12" cy="12" r="10" />
+                    <line v-if="!selectedRoomId" x1="12" y1="8" x2="12" y2="16" />
+                    <line v-if="!selectedRoomId" x1="8" y1="12" x2="16" y2="12" />
                   </svg>
                   <span v-if="isRoomSaving" class="spinner"></span>
-                  {{ isRoomSaving ? 'Saving...' : (selectedRoomId ? 'Save Changes' : 'Create Room') }}
+                  {{ isRoomSaving ? 'Saving...' : selectedRoomId ? 'Save Changes' : 'Create Room' }}
                 </button>
                 <button
                   type="button"
@@ -393,7 +419,7 @@
                   @click="resetRoomForm"
                 >
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+                    <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
                   </svg>
                   Clear
                 </button>
@@ -401,14 +427,26 @@
 
               <transition name="message-fade">
                 <div v-if="roomMessage" :class="['form-message', roomMessage.type]">
-                  <svg v-if="roomMessage.type === 'success'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
-                    <polyline points="22 4 12 14.01 9 11.01"/>
+                  <svg
+                    v-if="roomMessage.type === 'success'"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                    <polyline points="22 4 12 14.01 9 11.01" />
                   </svg>
-                  <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"/>
-                    <line x1="12" y1="8" x2="12" y2="12"/>
-                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                  <svg
+                    v-else
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
                   {{ roomMessage.text }}
                 </div>
@@ -424,15 +462,15 @@
           <div class="delete-modal">
             <div class="modal-icon">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="12" y1="8" x2="12" y2="12"/>
-                <line x1="12" y1="16" x2="12.01" y2="16"/>
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
               </svg>
             </div>
             <h3 class="modal-title">Delete Room?</h3>
             <p class="modal-text">
-              Are you sure you want to delete <strong>{{ deleteConfirmRoom?.name }}</strong>? 
-              This will also remove all cell assignments for this room.
+              Are you sure you want to delete <strong>{{ deleteConfirmRoom?.name }}</strong
+              >? This will also remove all cell assignments for this room.
             </p>
             <div class="modal-actions">
               <button class="modal-btn cancel" @click="deleteConfirmRoom = null">Cancel</button>
@@ -523,8 +561,16 @@ const deleteConfirmRoom = ref(null)
 
 // Color presets for room form
 const colorPresets = [
-  '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
-  '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+  '#3b82f6',
+  '#10b981',
+  '#f59e0b',
+  '#ef4444',
+  '#8b5cf6',
+  '#ec4899',
+  '#06b6d4',
+  '#84cc16',
+  '#f97316',
+  '#6366f1',
 ]
 
 // Initialize filled cells from props (fallback)
@@ -849,7 +895,7 @@ const getRoomCellCount = (roomId) => {
 const tooltipStyle = computed(() => {
   return {
     left: `${tooltipPosition.value.x}px`,
-    top: `${tooltipPosition.value.y}px`
+    top: `${tooltipPosition.value.y}px`,
   }
 })
 
@@ -866,7 +912,7 @@ const collapseAllRooms = () => {
   if (expandedRooms.value.size > 0) {
     expandedRooms.value.clear()
   } else {
-    rooms.value.forEach(r => expandedRooms.value.add(r.id))
+    rooms.value.forEach((r) => expandedRooms.value.add(r.id))
   }
 }
 
@@ -879,7 +925,7 @@ const executeDeleteRoom = async () => {
   if (!deleteConfirmRoom.value) return
   const room = deleteConfirmRoom.value
   deleteConfirmRoom.value = null
-  
+
   if (!room || room.id == null) {
     roomMessage.value = { text: 'Room id is required to delete.', type: 'error' }
     return
@@ -891,7 +937,7 @@ const executeDeleteRoom = async () => {
   try {
     await deleteRoom(room.id)
     rooms.value = rooms.value.filter((r) => r.id !== room.id)
-    
+
     // Remove cell assignments for this room
     const newCellsWithRooms = new Map()
     cellsWithRooms.value.forEach((roomId, cellKey) => {
@@ -923,7 +969,7 @@ const executeDeleteRoom = async () => {
 // Tooltip handlers
 const handleCellMouseEnter = (cell) => {
   handleMouseEnter(cell)
-  
+
   const room = getCellRoom(cell)
   if (room) {
     clearTimeout(tooltipTimeout)
@@ -940,7 +986,7 @@ const handleCellMouseMove = (cell, event) => {
     const rect = event.target.closest('.grid-wrapper').getBoundingClientRect()
     tooltipPosition.value = {
       x: event.clientX - rect.left + 15,
-      y: event.clientY - rect.top - 10
+      y: event.clientY - rect.top - 10,
     }
   }
 }
@@ -1055,12 +1101,27 @@ const isCellAdjacentToActiveRoom = (x, y) => {
   const selectedHas = (xx, yy) => selectedArea.value.has(`${xx}-${yy}`)
   const assignedHas = (xx, yy) => cellsWithRooms.value.get(`${xx}-${yy}`) === activeRoomId.value
 
+  // Count how many cells are already assigned to this room
+  let assignedCount = 0
+  cellsWithRooms.value.forEach((rid) => {
+    if (rid === activeRoomId.value) assignedCount++
+  })
+
+  // If no cells are assigned yet AND no cells selected, allow first cell freely
+  if (assignedCount === 0 && selectedArea.value.size === 0) {
+    return true
+  }
+
   // Check four-neighborhood adjacency
   return (
-    selectedHas(x, y - 1) || assignedHas(x, y - 1) ||
-    selectedHas(x, y + 1) || assignedHas(x, y + 1) ||
-    selectedHas(x - 1, y) || assignedHas(x - 1, y) ||
-    selectedHas(x + 1, y) || assignedHas(x + 1, y)
+    selectedHas(x, y - 1) ||
+    assignedHas(x, y - 1) ||
+    selectedHas(x, y + 1) ||
+    assignedHas(x, y + 1) ||
+    selectedHas(x - 1, y) ||
+    assignedHas(x - 1, y) ||
+    selectedHas(x + 1, y) ||
+    assignedHas(x + 1, y)
   )
 }
 
@@ -1087,18 +1148,17 @@ const getCellBorderStyle = (cell) => {
   const hasLeft = cellsWithRooms.value.get(`${x - 1}-${y}`) === roomId
   const hasRight = cellsWithRooms.value.get(`${x + 1}-${y}`) === roomId
 
-  // Create a darker shade of the room color for the border
   const borderColor = cellRoom.color
-  
-  // Calculate border widths - thicker outer borders for definition
-  const outerBorderWidth = '3px'
-  const transparentBorder = `${outerBorderWidth} solid transparent`
-  const visibleBorder = `${outerBorderWidth} solid ${borderColor}`
-  
+  const borderWidth = '3px'
+
+  // Use same color as background for internal borders (makes them invisible)
+  const internalBorder = `${borderWidth} solid ${cellRoom.color}`
+  const externalBorder = `${borderWidth} solid ${borderColor}`
+
   // Calculate border radius for corners
   const cornerRadius = '6px'
   const noRadius = '0px'
-  
+
   // Determine which corners should be rounded
   const topLeft = !hasTop && !hasLeft ? cornerRadius : noRadius
   const topRight = !hasTop && !hasRight ? cornerRadius : noRadius
@@ -1106,17 +1166,15 @@ const getCellBorderStyle = (cell) => {
   const bottomRight = !hasBottom && !hasRight ? cornerRadius : noRadius
 
   return {
-    borderTop: hasTop ? transparentBorder : visibleBorder,
-    borderBottom: hasBottom ? transparentBorder : visibleBorder,
-    borderLeft: hasLeft ? transparentBorder : visibleBorder,
-    borderRight: hasRight ? transparentBorder : visibleBorder,
+    borderTop: hasTop ? internalBorder : externalBorder,
+    borderBottom: hasBottom ? internalBorder : externalBorder,
+    borderLeft: hasLeft ? internalBorder : externalBorder,
+    borderRight: hasRight ? internalBorder : externalBorder,
     borderRadius: `${topLeft} ${topRight} ${bottomRight} ${bottomLeft}`,
     backgroundColor: cellRoom.color,
     margin: '0',
     padding: '0',
     boxSizing: 'border-box',
-    boxShadow: 'inset 0 0 0 1px rgba(255, 255, 255, 0.1)',
-    filter: 'saturate(0.9)',
   }
 }
 
@@ -1227,24 +1285,15 @@ const handleMouseUp = () => {
       const filled = isCellFilled(mouseDownCell.value)
       if (!filled) {
         showMessage('Only filled cells can be added to rooms', 'error')
-      } else if (selectedArea.value.size === 0) {
-        // First selection must be adjacent to existing room assignment
-        if (isCellAdjacentToActiveRoom(x, y)) {
-          selectedArea.value.add(cellKey)
-          showMessage('Cell added to room selection', 'success')
-        } else {
-          showMessage('Start from a cell adjacent to the room', 'error')
-        }
+      } else if (selectedArea.value.has(cellKey)) {
+        // Allow removing any selected cell
+        selectedArea.value.delete(cellKey)
+        showMessage('Cell removed from selection', 'info')
+      } else if (isCellAdjacentToActiveRoom(x, y)) {
+        selectedArea.value.add(cellKey)
+        showMessage('Cell added to room selection', 'success')
       } else {
-        if (selectedArea.value.has(cellKey)) {
-          selectedArea.value.delete(cellKey)
-          showMessage('Cell removed from selection', 'info')
-        } else if (isCellAdjacentToActiveRoom(x, y)) {
-          selectedArea.value.add(cellKey)
-          showMessage('Cell added to room selection', 'success')
-        } else {
-          showMessage('Only adjacent cells can be added', 'error')
-        }
+        showMessage('Select cells adjacent to the room or existing selection', 'error')
       }
     } else {
       // Normal mode: toggle fill
@@ -1262,16 +1311,26 @@ const handleMouseUp = () => {
     }
   } else if (isDragging.value) {
     if (roomAssignmentMode.value) {
-      // Apply adjacency + filled validation per cell in drag area
-      currentDragArea.value.forEach((cellKey) => {
+      // Apply adjacency + filled validation per cell in drag area, process in order
+      const cellsToProcess = Array.from(currentDragArea.value)
+      let addedCount = 0
+
+      // Sort cells to process adjacent ones first
+      for (const cellKey of cellsToProcess) {
         const [x, y] = cellKey.split('-').map(Number)
         const filled = filledCellsData.value.findIndex((c) => c.x === x && c.y === y) !== -1
+
         if (selectedArea.value.has(cellKey)) {
           selectedArea.value.delete(cellKey)
         } else if (filled && isCellAdjacentToActiveRoom(x, y)) {
           selectedArea.value.add(cellKey)
+          addedCount++
         }
-      })
+      }
+
+      if (addedCount > 0) {
+        showMessage(`Added ${addedCount} cells to selection`, 'success')
+      }
     } else {
       currentDragArea.value.forEach((cellKey) => {
         if (selectedArea.value.has(cellKey)) {
@@ -1872,7 +1931,9 @@ const goBack = () => {
   border-radius: 0;
   border: none;
   cursor: pointer;
-  transition: background-color 0.2s, filter 0.2s;
+  transition:
+    background-color 0.2s,
+    filter 0.2s;
   position: relative;
   min-width: 30px;
   min-height: 30px;
@@ -1886,14 +1947,14 @@ const goBack = () => {
 .grid-cell-filled {
   background: linear-gradient(145deg, #3b82f6 0%, #2563eb 100%);
   color: rgba(255, 255, 255, 0.9);
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.15),
     0 2px 4px rgba(37, 99, 235, 0.3);
 }
 
 .grid-cell-filled:hover {
   background: linear-gradient(145deg, #60a5fa 0%, #3b82f6 100%);
-  box-shadow: 
+  box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     0 4px 8px rgba(37, 99, 235, 0.4);
 }
@@ -1989,19 +2050,10 @@ const goBack = () => {
   color: rgba(255, 255, 255, 0.9);
   font-weight: 600;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
-  position: relative;
-}
-
-.grid-cell-has-room::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
-  pointer-events: none;
 }
 
 .grid-cell-has-room:hover {
-  filter: brightness(1.15) saturate(1.1) !important;
+  filter: brightness(1.15);
   z-index: 10;
 }
 
@@ -2719,7 +2771,9 @@ const goBack = () => {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .reset-btn {
@@ -2930,22 +2984,17 @@ const goBack = () => {
 /* Room Tooltip */
 .room-tooltip {
   position: absolute;
-  background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
-  border: 1px solid #374151;
-  border-radius: 0.5rem;
-  padding: 0.75rem;
-  min-width: 150px;
-  max-width: 250px;
-  z-index: 100;
-  pointer-events: none;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-}
-
-.tooltip-header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-bottom: 0.35rem;
+  background: linear-gradient(145deg, #1f2937 0%, #111827 100%);
+  border: 1px solid #374151;
+  border-radius: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+  white-space: nowrap;
 }
 
 .tooltip-color {
@@ -2956,22 +3005,9 @@ const goBack = () => {
 }
 
 .tooltip-name {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.85rem;
+  font-weight: 600;
   color: #f1f5f9;
-}
-
-.tooltip-desc {
-  font-size: 0.8rem;
-  color: #94a3b8;
-  margin-bottom: 0.35rem;
-  line-height: 1.3;
-}
-
-.tooltip-coords {
-  font-size: 0.7rem;
-  color: #6b7280;
-  font-family: monospace;
 }
 
 /* Tooltip Fade Animation */
