@@ -770,6 +770,7 @@ const getCellBorderStyle = (cell) => {
     return {
       margin: '2px',
       border: '2px solid #6b7280',
+      boxSizing: 'border-box',
     }
   }
 
@@ -785,14 +786,20 @@ const getCellBorderStyle = (cell) => {
 
   const borderWidth = '3px'
   const borderColor = cellRoom.color
+  // Use transparent for internal edges to maintain consistent cell sizing
+  const transparentBorder = `${borderWidth} solid transparent`
+  const visibleBorder = `${borderWidth} solid ${borderColor}`
 
   return {
-    borderTop: hasTop ? 'none' : `${borderWidth} solid ${borderColor}`,
-    borderBottom: hasBottom ? 'none' : `${borderWidth} solid ${borderColor}`,
-    borderLeft: hasLeft ? 'none' : `${borderWidth} solid ${borderColor}`,
-    borderRight: hasRight ? 'none' : `${borderWidth} solid ${borderColor}`,
+    borderTop: hasTop ? transparentBorder : visibleBorder,
+    borderBottom: hasBottom ? transparentBorder : visibleBorder,
+    borderLeft: hasLeft ? transparentBorder : visibleBorder,
+    borderRight: hasRight ? transparentBorder : visibleBorder,
     backgroundColor: cellRoom.color,
-    margin: '0', // No margin for room cells
+    margin: '0',
+    padding: '0',
+    boxSizing: 'border-box',
+    boxShadow: 'none', // Override any inherited box-shadow
   }
 }
 
@@ -1531,7 +1538,7 @@ const goBack = () => {
 
 .grid-container {
   display: inline-grid;
-  gap: 0.25rem;
+  gap: 0;
   padding: 0.5rem;
   background-color: #1f2937;
   border-radius: 0.375rem;
@@ -1548,10 +1555,11 @@ const goBack = () => {
   border-radius: 0;
   border: none;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: background-color 0.2s, filter 0.2s;
   position: relative;
   min-width: 30px;
   min-height: 30px;
+  box-sizing: border-box;
 }
 
 .grid-cell:hover {
@@ -1581,7 +1589,6 @@ const goBack = () => {
 /* Selection Highlight */
 .grid-cell-selecting {
   background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
-  border-color: #c4b5fd !important;
   color: white !important;
   box-shadow:
     0 0 20px rgba(139, 92, 246, 0.6),
@@ -1607,7 +1614,6 @@ const goBack = () => {
 
 .grid-cell-removing {
   background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%) !important;
-  border-color: #ef4444 !important;
   color: #fca5a5 !important;
   box-shadow:
     0 0 20px rgba(239, 68, 68, 0.6),
@@ -1633,7 +1639,6 @@ const goBack = () => {
 
 .grid-cell-selecting-filled {
   background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
-  border-color: #fdba74 !important;
   color: white !important;
   box-shadow:
     0 0 20px rgba(249, 115, 22, 0.6),
@@ -1661,11 +1666,12 @@ const goBack = () => {
 .grid-cell-has-room {
   color: white;
   font-weight: 700;
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1);
+  box-shadow: none !important;
+  border: none;
 }
 
 .grid-cell-has-room:hover {
-  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.2);
+  box-shadow: none !important;
   filter: brightness(1.1);
   transform: none;
   z-index: 10;
@@ -1674,7 +1680,6 @@ const goBack = () => {
 /* Room assignment mode cell states */
 .grid-cell-room-selected {
   background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%) !important;
-  border-color: #fcd34d !important;
   color: #1f2937 !important;
   box-shadow:
     0 0 20px rgba(251, 191, 36, 0.7),
@@ -1686,7 +1691,6 @@ const goBack = () => {
 
 .grid-cell-room-current {
   opacity: 0.6;
-  border-color: rgba(255, 255, 255, 0.5) !important;
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
 }
 
