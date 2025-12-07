@@ -317,7 +317,7 @@
               <div
                 v-for="room in rooms"
                 :key="room.id || room.name"
-                :ref="el => setRoomCardRef(room.id, el)"
+                :ref="(el) => setRoomCardRef(room.id, el)"
                 class="room-card"
                 :class="{
                   'room-card-expanded': expandedRooms.has(room.id),
