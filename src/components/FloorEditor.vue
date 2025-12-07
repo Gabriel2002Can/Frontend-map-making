@@ -1605,7 +1605,15 @@ const getCellClass = (cell) => {
 
   // Room assignment mode takes priority for visual feedback
   if (roomAssignmentMode.value) {
-    if (isInSelection(cell)) {
+    // Show drag selection visual feedback during drag
+    if (isDragging.value && isInCurrentDrag(cell)) {
+      if (cell.isFilled) {
+        classes.push('grid-cell-room-dragging')
+      } else {
+        classes.push('grid-cell-empty')
+        classes.push('grid-cell-room-drag-invalid')
+      }
+    } else if (isInSelection(cell)) {
       classes.push('grid-cell-room-selected')
     } else if (cellRoom && cellRoom.id === activeRoomId.value) {
       classes.push('grid-cell-room-current')
@@ -2732,6 +2740,36 @@ const goBack = () => {
   font-weight: 800;
 }
 
+/* Visual feedback during drag in room assignment mode */
+.grid-cell-room-dragging {
+  background: linear-gradient(135deg, #34d399 0%, #10b981 100%) !important;
+  color: white !important;
+  box-shadow:
+    0 0 0 2px rgba(16, 185, 129, 0.5),
+    0 4px 12px rgba(16, 185, 129, 0.4) !important;
+  transform: scale(1.05);
+  z-index: 6;
+  animation: room-drag-pulse 0.8s ease-in-out infinite;
+}
+
+.grid-cell-room-drag-invalid {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+}
+
+@keyframes room-drag-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 0 2px rgba(16, 185, 129, 0.5),
+      0 4px 12px rgba(16, 185, 129, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px rgba(16, 185, 129, 0.7),
+      0 6px 16px rgba(16, 185, 129, 0.5);
+  }
+}
+
 .grid-cell-room-current {
   opacity: 0.7;
   position: relative;
@@ -3034,8 +3072,30 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 400px;
+  max-height: 60vh;
+  min-height: 200px;
   overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1a2332;
+}
+
+.room-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.room-list::-webkit-scrollbar-track {
+  background: #1a2332;
+  border-radius: 4px;
+}
+
+.room-list::-webkit-scrollbar-thumb {
+  background-color: #4b5563;
+  border-radius: 4px;
+}
+
+.room-list::-webkit-scrollbar-thumb:hover {
+  background-color: #6b7280;
 }
 
 /* Room Card */
@@ -3596,7 +3656,7 @@ const goBack = () => {
 
 .expand-enter-to,
 .expand-leave-from {
-  max-height: 200px;
+  max-height: 300px;
 }
 
 /* Delete Modal */
