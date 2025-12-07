@@ -92,13 +92,46 @@ async function http(url, options = {}) {
 
 // ===== Models (JSDoc) =====
 
+/**
+ * Icon types available for cells
+ * @enum {number}
+ */
+export const IconType = {
+  Stairs: 0,
+  Elevator: 1,
+  Door: 2,
+  Toilet: 3,
+}
+
+/**
+ * Get icon name from IconType value
+ * @param {number} iconType
+ * @returns {string|null}
+ */
+export function getIconImage(iconType) {
+  switch (iconType) {
+    case IconType.Stairs:
+      return 'faStairs'
+    case IconType.Elevator:
+      return 'faElevator'
+    case IconType.Door:
+      return 'faDoorClosed'
+    case IconType.Toilet:
+      return 'faRestroom'
+    default:
+      return null
+  }
+}
+
 /** @typedef {Object} Cell
  *  @property {number} id
  *  @property {number} x
  *  @property {number} y
  *  @property {boolean} isFilled
  *  @property {number} floorId
- *  @property {number} roomId
+ *  @property {number} [roomId]
+ *  @property {number} [icon] - IconType enum value
+ *  @property {string} [iconImage] - Icon image name (e.g., 'faStairs')
  */
 
 /** @typedef {Object} Room
@@ -137,7 +170,11 @@ async function http(url, options = {}) {
 /** @typedef {Object} CellUpdateDTO
  *  @property {number} x
  *  @property {number} y
- *  @property {boolean} isFilled
+ *  @property {boolean} [isFilled]
+ *  @property {boolean} [clearRoom] - Set to true to clear the roomId
+ *  @property {number} [roomId]
+ *  @property {boolean} [clearIcon] - Set to true to clear the icon
+ *  @property {number} [icon] - IconType enum value
  */
 
 /** @typedef {Object} CellsDTO

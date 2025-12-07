@@ -86,7 +86,9 @@
                 @mouseenter="handleCellHover(cell, $event)"
                 @mousemove="handleCellMove($event)"
                 @mouseleave="handleCellLeave"
-              ></div>
+              >
+                <span v-if="getCellIcon(cell)" class="cell-icon" v-html="getCellIcon(cell).svg"></span>
+              </div>
             </div>
           </div>
 
@@ -138,7 +140,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { getFloorById, getRoomsByFloorId } from '@/api/backend'
+import { getFloorById, getRoomsByFloorId, IconType } from '@/api/backend'
 
 const props = defineProps({
   mapId: { type: Number, required: true },
@@ -148,7 +150,32 @@ const props = defineProps({
 const floor = ref(null)
 const rooms = ref([])
 const cellsWithRooms = ref(new Map())
+const cellIcons = ref(new Map()) // Map of 'x-y' -> IconType value
 const gridContainerRef = ref(null)
+
+// Icon options with SVG symbols (same as FloorEditor)
+const iconOptions = [
+  {
+    value: IconType.Stairs,
+    label: 'Stairs',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4v-4h4v-4h4v-4h4"/></svg>',
+  },
+  {
+    value: IconType.Elevator,
+    label: 'Elevator',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><polyline points="8 12 12 8 16 12"/><polyline points="8 12 12 16 16 12"/></svg>',
+  },
+  {
+    value: IconType.Door,
+    label: 'Door',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="1"/><circle cx="15" cy="12" r="1.5"/></svg>',
+  },
+  {
+    value: IconType.Toilet,
+    label: 'Toilet',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a3 3 0 0 0-3-3h-1"/></svg>',
+  },
+]
 
 // Zoom state
 const zoomLevel = ref(1)
@@ -173,15 +200,20 @@ const load = async () => {
       rooms.value = roomList
     }
 
-    // Build cell-to-room map
+    // Build cell-to-room map and icons map
     if (floor.value?.cells) {
-      const newMap = new Map()
+      const newRoomMap = new Map()
+      const newIconMap = new Map()
       floor.value.cells.forEach((c) => {
         if (c.roomId != null) {
-          newMap.set(`${c.x}-${c.y}`, c.roomId)
+          newRoomMap.set(`${c.x}-${c.y}`, c.roomId)
+        }
+        if (c.icon != null) {
+          newIconMap.set(`${c.x}-${c.y}`, c.icon)
         }
       })
-      cellsWithRooms.value = newMap
+      cellsWithRooms.value = newRoomMap
+      cellIcons.value = newIconMap
     }
 
     // Auto-fit after load
@@ -247,6 +279,13 @@ const getCellRoom = (cell) => {
   const roomId = cellsWithRooms.value.get(cellKey)
   if (roomId == null) return null
   return rooms.value.find((r) => r.id === roomId)
+}
+
+const getCellIcon = (cell) => {
+  const cellKey = `${cell.x}-${cell.y}`
+  const iconType = cellIcons.value.get(cellKey)
+  if (iconType == null) return null
+  return iconOptions.find((opt) => opt.value === iconType)
 }
 
 const getRoomCellCount = (roomId) => {
@@ -582,6 +621,7 @@ const gridStyle = computed(() => {
   transition:
     filter 0.15s,
     transform 0.15s;
+  position: relative;
 }
 
 .cell.filled {
@@ -611,6 +651,28 @@ const gridStyle = computed(() => {
   filter: brightness(1.3);
   z-index: 10;
   animation: pulse-highlight 1s ease-in-out infinite;
+}
+
+/* Cell Icon */
+.cell-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cell-icon :deep(svg) {
+  width: 100%;
+  height: 100%;
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
 @keyframes pulse-highlight {

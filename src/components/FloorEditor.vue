@@ -113,6 +113,7 @@
               @mouseleave="handleCellMouseLeave"
             >
               <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
+              <span v-if="getCellIcon(cell)" class="cell-icon" v-html="getCellIcon(cell).svg"></span>
             </div>
           </div>
 
@@ -456,6 +457,76 @@
         </div>
       </div>
 
+      <!-- Icon Manager -->
+      <div class="icon-manager-card">
+        <div class="icon-manager-header">
+          <div class="icon-header-left">
+            <h3 class="section-title">
+              <svg
+                class="icon-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 2L2 7l10 5 10-5-10-5z" />
+                <path d="M2 17l10 5 10-5" />
+                <path d="M2 12l10 5 10-5" />
+              </svg>
+              Icon Manager
+            </h3>
+            <p class="icon-subtitle">Add icons to cells (stairs, elevators, doors, etc.)</p>
+          </div>
+          <div class="icon-header-stats">
+            <span class="icon-stat">
+              <span class="stat-number">{{ cellIcons.size }}</span>
+              <span class="stat-label">Icons</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Icon Assignment Control Panel -->
+        <transition name="slide-down">
+          <div v-if="iconAssignmentMode" class="icon-assignment-panel">
+            <div class="assignment-info">
+              <span class="assignment-text">
+                <strong>Icon Assignment Mode:</strong>
+                {{ getIconLabel(selectedIconType) }}
+              </span>
+              <span class="assignment-hint">
+                Click on cells to toggle the icon. Click again to remove.
+              </span>
+            </div>
+            <div class="assignment-actions">
+              <button @click="cancelIconAssignment" class="action-btn cancel-btn">Done</button>
+            </div>
+          </div>
+        </transition>
+
+        <div class="icon-grid">
+          <button
+            v-for="iconOption in iconOptions"
+            :key="iconOption.value"
+            :class="['icon-btn', { active: iconAssignmentMode && selectedIconType === iconOption.value }]"
+            @click="startIconAssignment(iconOption.value)"
+            :title="iconOption.label"
+          >
+            <span class="icon-symbol" v-html="iconOption.svg"></span>
+            <span class="icon-label">{{ iconOption.label }}</span>
+          </button>
+        </div>
+
+        <div v-if="cellIcons.size > 0" class="icon-summary">
+          <span class="summary-title">Assigned Icons:</span>
+          <div class="icon-tags">
+            <span v-for="iconOption in iconOptions" :key="iconOption.value" class="icon-tag" v-show="getIconCount(iconOption.value) > 0">
+              <span v-html="iconOption.svg" class="tag-icon"></span>
+              {{ iconOption.label }}: {{ getIconCount(iconOption.value) }}
+            </span>
+          </div>
+        </div>
+      </div>
+
       <!-- Delete Confirmation Modal -->
       <transition name="modal-fade">
         <div v-if="deleteConfirmRoom" class="modal-overlay" @click.self="deleteConfirmRoom = null">
@@ -501,7 +572,7 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { createRoom, editRoom, getRoomsByFloorId, getFloorById, deleteRoom } from '@/api/backend'
+import { createRoom, editRoom, getRoomsByFloorId, getFloorById, deleteRoom, IconType } from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['save-cells', 'back'])
@@ -537,6 +608,11 @@ const isRoomSaving = ref(false)
 const activeRoomId = ref(null) // Room being assigned to cells
 const roomAssignmentMode = ref(false) // Whether we're in room assignment mode
 const cellsWithRooms = ref(new Map()) // Map of 'x-y' -> roomId
+const cellIcons = ref(new Map()) // Map of 'x-y' -> IconType value
+
+// Icon assignment state
+const iconAssignmentMode = ref(false)
+const selectedIconType = ref(null)
 
 // Selection state
 const isSelecting = ref(false)
@@ -572,6 +648,86 @@ const colorPresets = [
   '#f97316',
   '#6366f1',
 ]
+
+// Icon options with SVG symbols
+const iconOptions = [
+  {
+    value: IconType.Stairs,
+    label: 'Stairs',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4v-4h4v-4h4v-4h4"/></svg>',
+  },
+  {
+    value: IconType.Elevator,
+    label: 'Elevator',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="12" y1="8" x2="12" y2="16"/><polyline points="8 12 12 8 16 12"/><polyline points="8 12 12 16 16 12"/></svg>',
+  },
+  {
+    value: IconType.Door,
+    label: 'Door',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="1"/><circle cx="15" cy="12" r="1.5"/></svg>',
+  },
+  {
+    value: IconType.Toilet,
+    label: 'Toilet',
+    svg: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><circle cx="17" cy="7" r="3"/><path d="M21 21v-2a3 3 0 0 0-3-3h-1"/></svg>',
+  },
+]
+
+// Icon helper functions
+const getIconLabel = (iconType) => {
+  const option = iconOptions.find((opt) => opt.value === iconType)
+  return option ? option.label : 'Unknown'
+}
+
+const getIconCount = (iconType) => {
+  let count = 0
+  cellIcons.value.forEach((value) => {
+    if (value === iconType) count++
+  })
+  return count
+}
+
+const startIconAssignment = (iconType) => {
+  if (iconAssignmentMode.value && selectedIconType.value === iconType) {
+    // Toggle off if clicking same icon
+    cancelIconAssignment()
+    return
+  }
+  selectedIconType.value = iconType
+  iconAssignmentMode.value = true
+  showMessage(`Icon mode: ${getIconLabel(iconType)}. Click cells to add/remove.`, 'info')
+}
+
+const cancelIconAssignment = () => {
+  iconAssignmentMode.value = false
+  selectedIconType.value = null
+}
+
+const toggleCellIcon = (cell) => {
+  if (!iconAssignmentMode.value || selectedIconType.value == null) return
+
+  const cellKey = `${cell.x}-${cell.y}`
+  const currentIcon = cellIcons.value.get(cellKey)
+
+  if (currentIcon === selectedIconType.value) {
+    // Remove icon if same type
+    const newCellIcons = new Map(cellIcons.value)
+    newCellIcons.delete(cellKey)
+    cellIcons.value = newCellIcons
+  } else {
+    // Set or replace icon
+    const newCellIcons = new Map(cellIcons.value)
+    newCellIcons.set(cellKey, selectedIconType.value)
+    cellIcons.value = newCellIcons
+  }
+}
+
+const getCellIcon = (cell) => {
+  const cellKey = `${cell.x}-${cell.y}`
+  const iconType = cellIcons.value.get(cellKey)
+  if (iconType == null) return null
+  return iconOptions.find((opt) => opt.value === iconType)
+}
 
 // Initialize filled cells from props (fallback)
 if (props.floor.cells && Array.isArray(props.floor.cells)) {
@@ -626,13 +782,19 @@ const loadInitialCells = async () => {
 
       // Load room assignments
       const newCellsWithRooms = new Map()
+      const newCellIcons = new Map()
       fullFloor.cells.forEach((c) => {
         if (c.roomId != null) {
           newCellsWithRooms.set(`${c.x}-${c.y}`, c.roomId)
         }
+        if (c.icon != null) {
+          newCellIcons.set(`${c.x}-${c.y}`, c.icon)
+        }
       })
       cellsWithRooms.value = newCellsWithRooms
+      cellIcons.value = newCellIcons
       console.log('Loaded room assignments:', cellsWithRooms.value.size, 'cells')
+      console.log('Loaded icon assignments:', cellIcons.value.size, 'cells')
     }
   } catch (err) {
     console.error('Failed to load floor cells:', err)
@@ -1280,8 +1442,12 @@ const handleMouseUp = () => {
     const x = mouseDownCell.value.x
     const y = mouseDownCell.value.y
 
+    // Icon assignment mode: toggle icon on cell
+    if (iconAssignmentMode.value) {
+      toggleCellIcon(mouseDownCell.value)
+    }
     // Room assignment mode: enforce adjacency and filled-only additions
-    if (roomAssignmentMode.value) {
+    else if (roomAssignmentMode.value) {
       const filled = isCellFilled(mouseDownCell.value)
       if (!filled) {
         showMessage('Only filled cells can be added to rooms', 'error')
@@ -1462,11 +1628,11 @@ const zoomOut = () => {
 }
 
 const generatePayload = () => {
-  // Create full list of cells with filled status and room assignments
+  // Create full list of cells with filled status, room assignments, and icons
   const allCellsWithStatus = []
   const filledMap = new Map(filledCells.value.map((c) => [`${c.x}-${c.y}`, true]))
 
-  // Generate full grid with filled status and room assignments
+  // Generate full grid with filled status, room assignments, and icons
   for (let y = 0; y < props.floor.dimensionY; y++) {
     for (let x = 0; x < props.floor.dimensionX; x++) {
       const cellKey = `${x}-${y}`
@@ -1476,10 +1642,24 @@ const generatePayload = () => {
         isFilled: filledMap.has(cellKey),
       }
 
-      // Add roomId if cell is assigned to a room
+      // Handle room assignment with clearRoom flag
       const roomId = cellsWithRooms.value.get(cellKey)
       if (roomId != null) {
         cellData.roomId = roomId
+        cellData.clearRoom = false
+      } else {
+        // If no roomId, set clearRoom to true to clear any existing assignment
+        cellData.clearRoom = true
+      }
+
+      // Handle icon assignment with clearIcon flag
+      const iconType = cellIcons.value.get(cellKey)
+      if (iconType != null) {
+        cellData.icon = iconType
+        cellData.clearIcon = false
+      } else {
+        // If no icon, set clearIcon to true to clear any existing icon
+        cellData.clearIcon = true
       }
 
       allCellsWithStatus.push(cellData)
@@ -3096,6 +3276,215 @@ const goBack = () => {
 
 .cancel-button:hover {
   background-color: #4b5563;
+}
+
+/* Cell Icon */
+.cell-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.cell-icon :deep(svg) {
+  width: 100%;
+  height: 100%;
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.grid-cell {
+  position: relative;
+}
+
+/* Icon Manager */
+.icon-manager-card {
+  margin: 1.5rem 0;
+  background: linear-gradient(145deg, #111827 0%, #1a2332 100%);
+  border-radius: 1rem;
+  border: 1px solid #2d3748;
+  padding: 1.5rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.icon-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #2d3748;
+}
+
+.icon-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.icon-manager-header .section-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.icon-icon {
+  width: 24px;
+  height: 24px;
+  color: #60a5fa;
+}
+
+.icon-subtitle {
+  color: #94a3b8;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.icon-header-stats {
+  display: flex;
+  gap: 1rem;
+}
+
+.icon-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #1f2937;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  border: 1px solid #374151;
+}
+
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.icon-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #1f2937;
+  border: 2px solid #374151;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.icon-btn:hover {
+  background-color: #2d3748;
+  border-color: #4b5563;
+}
+
+.icon-btn.active {
+  background-color: rgba(96, 165, 250, 0.15);
+  border-color: #60a5fa;
+  box-shadow: 0 0 20px rgba(96, 165, 250, 0.3);
+}
+
+.icon-symbol {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-symbol :deep(svg) {
+  width: 100%;
+  height: 100%;
+  color: #e2e8f0;
+}
+
+.icon-btn.active .icon-symbol :deep(svg) {
+  color: #60a5fa;
+}
+
+.icon-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.icon-btn.active .icon-label {
+  color: #60a5fa;
+}
+
+.icon-assignment-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+  border: 2px solid #3b82f6;
+  border-radius: 0.75rem;
+  padding: 1rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.icon-summary {
+  background-color: #1f2937;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid #374151;
+}
+
+.summary-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+.icon-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.icon-tag {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.75rem;
+  background-color: #2d3748;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  color: #e2e8f0;
+}
+
+.tag-icon {
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tag-icon :deep(svg) {
+  width: 100%;
+  height: 100%;
+  color: #60a5fa;
 }
 
 /* Action Message */
