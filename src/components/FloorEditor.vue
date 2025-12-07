@@ -313,10 +313,11 @@
               </button>
             </div>
 
-            <div class="room-list" v-if="rooms.length > 0">
+            <div ref="roomListRef" class="room-list" v-if="rooms.length > 0">
               <div
                 v-for="room in rooms"
                 :key="room.id || room.name"
+                :ref="el => setRoomCardRef(room.id, el)"
                 class="room-card"
                 :class="{
                   'room-card-expanded': expandedRooms.has(room.id),
@@ -800,6 +801,16 @@ let tooltipTimeout = null
 
 // UI state for room manager
 const expandedRooms = ref(new Set())
+const roomListRef = ref(null)
+const roomCardRefs = ref(new Map())
+
+const setRoomCardRef = (roomId, el) => {
+  if (el) {
+    roomCardRefs.value.set(roomId, el)
+  } else {
+    roomCardRefs.value.delete(roomId)
+  }
+}
 const deleteConfirmRoom = ref(null)
 
 // Color presets for room form
@@ -1306,6 +1317,13 @@ const toggleRoomExpand = (roomId) => {
     expandedRooms.value.delete(roomId)
   } else {
     expandedRooms.value.add(roomId)
+    // Scroll the room card into view after expansion animation
+    setTimeout(() => {
+      const cardEl = roomCardRefs.value.get(roomId)
+      if (cardEl && roomListRef.value) {
+        cardEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      }
+    }, 50)
   }
 }
 
@@ -2758,7 +2776,8 @@ const goBack = () => {
 }
 
 @keyframes room-drag-pulse {
-  0%, 100% {
+  0%,
+  100% {
     box-shadow:
       0 0 0 2px rgba(16, 185, 129, 0.5),
       0 4px 12px rgba(16, 185, 129, 0.4);
@@ -3072,10 +3091,10 @@ const goBack = () => {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  max-height: 60vh;
-  min-height: 200px;
+  max-height: calc(100vh - 400px);
+  min-height: 150px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: visible;
   scrollbar-width: thin;
   scrollbar-color: #4b5563 #1a2332;
 }
@@ -3103,8 +3122,9 @@ const goBack = () => {
   background-color: #1f2937;
   border: 1px solid #374151;
   border-radius: 0.5rem;
-  overflow: hidden;
+  overflow: visible;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .room-card:hover {
@@ -3643,20 +3663,18 @@ const goBack = () => {
 .expand-enter-active,
 .expand-leave-active {
   transition: all 0.25s ease;
-  overflow: hidden;
 }
 
 .expand-enter-from,
 .expand-leave-to {
   opacity: 0;
-  max-height: 0;
-  padding-top: 0;
-  padding-bottom: 0;
+  transform: translateY(-10px);
 }
 
 .expand-enter-to,
 .expand-leave-from {
-  max-height: 300px;
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Delete Modal */
@@ -4349,7 +4367,8 @@ const goBack = () => {
   }
 
   .room-list {
-    max-height: 300px;
+    max-height: calc(100vh - 350px);
+    min-height: 200px;
   }
 }
 
