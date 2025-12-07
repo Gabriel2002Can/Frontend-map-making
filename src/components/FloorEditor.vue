@@ -34,38 +34,112 @@
 
       <!-- Toolbar -->
       <div class="toolbar">
-        <div class="toolbar-group">
-          <label class="zoom-label">Zoom:</label>
-          <div class="zoom-controls">
-            <button @click="zoomOut" class="zoom-button" :disabled="zoomLevel <= 0.5">−</button>
-            <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
-            <button @click="zoomIn" class="zoom-button" :disabled="zoomLevel >= 2">+</button>
+        <div class="toolbar-left">
+          <div class="toolbar-group">
+            <label class="zoom-label">Zoom:</label>
+            <div class="zoom-controls">
+              <button @click="zoomOut" class="zoom-button" :disabled="zoomLevel <= 0.5">−</button>
+              <span class="zoom-level">{{ Math.round(zoomLevel * 100) }}%</span>
+              <button @click="zoomIn" class="zoom-button" :disabled="zoomLevel >= 2">+</button>
+            </div>
+          </div>
+
+          <!-- Edit Mode Indicator -->
+          <div class="edit-mode-indicator" v-if="currentEditMode !== 'default'">
+            <span class="mode-dot" :class="currentEditMode"></span>
+            <span class="mode-text">{{ editModeLabel }}</span>
           </div>
         </div>
 
-        <div class="toolbar-group">
-          <button @click="fillAll" class="action-button fill-all" :disabled="isSaving">
-            Fill All
-          </button>
-          <button @click="clearAll" class="action-button clear-all" :disabled="isSaving">
-            Clear All
-          </button>
+        <div class="toolbar-right">
+          <div class="toolbar-group quick-actions">
+            <button
+              @click="fillAll"
+              class="action-button fill-all"
+              :disabled="isSaving || currentEditMode !== 'default'"
+              title="Fill all cells"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h6v6H9z" fill="currentColor" />
+              </svg>
+              Fill All
+            </button>
+            <button
+              @click="clearAll"
+              class="action-button clear-all"
+              :disabled="isSaving || currentEditMode !== 'default'"
+              title="Clear all cells, icons, and room assignments"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+              </svg>
+              Clear All
+            </button>
+          </div>
         </div>
       </div>
 
       <!-- Selection Control Panel -->
       <transition name="slide-down">
-        <div v-if="selectedArea.size > 0" class="selection-control-panel">
+        <div
+          v-if="selectedArea.size > 0 && !roomAssignmentMode && !iconAssignmentMode"
+          class="selection-control-panel"
+        >
           <div class="selection-info">
-            <span class="selection-text"
-              >Selected Area: <strong>{{ selectedArea.size }}</strong> cells</span
-            >
-            <span class="selection-hint">Click again on selected cells to remove them</span>
+            <div class="selection-badge">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M8 12h8" />
+              </svg>
+              <span class="selection-count">{{ selectedArea.size }}</span>
+            </div>
+            <div class="selection-text-group">
+              <span class="selection-text">cells selected</span>
+              <span class="selection-hint">Drag to select more • Right-click to clear cell</span>
+            </div>
           </div>
           <div class="selection-actions">
-            <button @click="fillSelectedArea" class="action-btn fill-btn">Fill Area</button>
-            <button @click="clearSelectedArea" class="action-btn clear-btn">Clear Area</button>
-            <button @click="cancelSelection" class="action-btn cancel-btn">Cancel</button>
+            <button
+              @click="fillSelectedArea"
+              class="action-btn fill-btn"
+              title="Fill selected cells (Enter)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <path d="M9 9h6v6H9z" fill="currentColor" />
+              </svg>
+              Fill
+              <span class="kbd-hint">↵</span>
+            </button>
+            <button
+              @click="clearSelectedArea"
+              class="action-btn clear-btn"
+              title="Clear selected cells (Delete)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+              </svg>
+              Clear
+              <span class="kbd-hint">Del</span>
+            </button>
+            <button
+              @click="cancelSelection"
+              class="action-btn cancel-btn"
+              title="Cancel selection (Escape)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              Cancel
+              <span class="kbd-hint">Esc</span>
+            </button>
           </div>
         </div>
       </transition>
@@ -74,19 +148,47 @@
       <transition name="slide-down">
         <div v-if="roomAssignmentMode" class="room-assignment-panel">
           <div class="assignment-info">
-            <span class="assignment-text">
-              <strong>Room Assignment Mode:</strong>
-              {{ rooms.find((r) => r.id === activeRoomId)?.name || 'Unknown' }}
-            </span>
-            <span class="assignment-hint">
-              Select cells to assign to this room. Currently selected: {{ selectedArea.size }} cells
-            </span>
+            <span
+              class="assignment-color"
+              :style="{
+                backgroundColor: rooms.find((r) => r.id === activeRoomId)?.color || '#3b82f6',
+              }"
+            ></span>
+            <div class="assignment-text-group">
+              <span class="assignment-text">
+                <strong>Assigning:</strong>
+                {{ rooms.find((r) => r.id === activeRoomId)?.name || 'Unknown' }}
+              </span>
+              <span class="assignment-hint">
+                Click filled cells to assign • {{ selectedArea.size }} cells selected
+              </span>
+            </div>
           </div>
           <div class="assignment-actions">
-            <button @click="saveRoomAssignment" class="action-btn save-assign-btn">
-              Save Assignment
+            <button
+              @click="saveRoomAssignment"
+              class="action-btn save-assign-btn"
+              title="Save room assignment"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                <polyline points="17 21 17 13 7 13 7 21" />
+              </svg>
+              Save
             </button>
-            <button @click="cancelRoomAssignment" class="action-btn cancel-btn">Cancel</button>
+            <button
+              @click="cancelRoomAssignment"
+              class="action-btn cancel-btn"
+              title="Cancel (Escape)"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="15" y1="9" x2="9" y2="15" />
+                <line x1="9" y1="9" x2="15" y2="15" />
+              </svg>
+              Cancel
+              <span class="kbd-hint">Esc</span>
+            </button>
           </div>
         </div>
       </transition>
@@ -111,9 +213,14 @@
               @mouseenter="handleCellMouseEnter(cell, $event)"
               @mousemove="handleCellMouseMove(cell, $event)"
               @mouseleave="handleCellMouseLeave"
+              @contextmenu.prevent="handleCellRightClick(cell, $event)"
             >
               <span class="cell-text">{{ cell.x + 1 }},{{ cell.y + 1 }}</span>
-              <span v-if="getCellIcon(cell)" class="cell-icon" v-html="getCellIcon(cell).svg"></span>
+              <span
+                v-if="getCellIcon(cell)"
+                class="cell-icon"
+                v-html="getCellIcon(cell).svg"
+              ></span>
             </div>
           </div>
 
@@ -475,9 +582,23 @@
               </svg>
               Icon Manager
             </h3>
-            <p class="icon-subtitle">Add icons to cells (stairs, elevators, doors, etc.)</p>
+            <p class="icon-subtitle">Add icons to filled cells (stairs, elevators, doors, etc.)</p>
           </div>
-          <div class="icon-header-stats">
+          <div class="icon-header-actions">
+            <button
+              v-if="cellIcons.size > 0"
+              class="clear-icons-btn"
+              @click="clearAllIcons"
+              title="Clear all icons"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path
+                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                />
+              </svg>
+              Clear All
+            </button>
             <span class="icon-stat">
               <span class="stat-number">{{ cellIcons.size }}</span>
               <span class="stat-label">Icons</span>
@@ -489,16 +610,31 @@
         <transition name="slide-down">
           <div v-if="iconAssignmentMode" class="icon-assignment-panel">
             <div class="assignment-info">
-              <span class="assignment-text">
-                <strong>Icon Assignment Mode:</strong>
-                {{ getIconLabel(selectedIconType) }}
-              </span>
-              <span class="assignment-hint">
-                Click on cells to toggle the icon. Click again to remove.
-              </span>
+              <span
+                class="assignment-icon"
+                v-html="iconOptions.find((i) => i.value === selectedIconType)?.svg"
+              ></span>
+              <div class="assignment-text-group">
+                <span class="assignment-text">
+                  <strong>Placing:</strong> {{ getIconLabel(selectedIconType) }}
+                </span>
+                <span class="assignment-hint">
+                  Click filled cells to add/remove • Right-click to remove icon
+                </span>
+              </div>
             </div>
             <div class="assignment-actions">
-              <button @click="cancelIconAssignment" class="action-btn cancel-btn">Done</button>
+              <button
+                @click="cancelIconAssignment"
+                class="action-btn done-btn"
+                title="Done (Escape)"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+                Done
+                <span class="kbd-hint">Esc</span>
+              </button>
             </div>
           </div>
         </transition>
@@ -507,23 +643,47 @@
           <button
             v-for="iconOption in iconOptions"
             :key="iconOption.value"
-            :class="['icon-btn', { active: iconAssignmentMode && selectedIconType === iconOption.value }]"
+            :class="[
+              'icon-btn',
+              { active: iconAssignmentMode && selectedIconType === iconOption.value },
+            ]"
             @click="startIconAssignment(iconOption.value)"
-            :title="iconOption.label"
+            :title="`Place ${iconOption.label} icon`"
           >
             <span class="icon-symbol" v-html="iconOption.svg"></span>
             <span class="icon-label">{{ iconOption.label }}</span>
+            <span v-if="getIconCount(iconOption.value) > 0" class="icon-count-badge">
+              {{ getIconCount(iconOption.value) }}
+            </span>
           </button>
         </div>
 
         <div v-if="cellIcons.size > 0" class="icon-summary">
-          <span class="summary-title">Assigned Icons:</span>
-          <div class="icon-tags">
-            <span v-for="iconOption in iconOptions" :key="iconOption.value" class="icon-tag" v-show="getIconCount(iconOption.value) > 0">
-              <span v-html="iconOption.svg" class="tag-icon"></span>
-              {{ iconOption.label }}: {{ getIconCount(iconOption.value) }}
-            </span>
+          <div class="summary-header">
+            <span class="summary-title">Placed Icons</span>
+            <span class="summary-total">{{ cellIcons.size }} total</span>
           </div>
+          <div class="icon-tags">
+            <div
+              v-for="iconOption in iconOptions"
+              :key="iconOption.value"
+              class="icon-tag-item"
+              v-show="getIconCount(iconOption.value) > 0"
+            >
+              <span v-html="iconOption.svg" class="tag-icon"></span>
+              <span class="tag-label">{{ iconOption.label }}</span>
+              <span class="tag-count">{{ getIconCount(iconOption.value) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-else class="icon-empty-state">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <path d="M12 8v8M8 12h8" />
+          </svg>
+          <p>No icons placed yet</p>
+          <span>Select an icon above and click on filled cells to place it</span>
         </div>
       </div>
 
@@ -572,7 +732,14 @@
 
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { createRoom, editRoom, getRoomsByFloorId, getFloorById, deleteRoom, IconType } from '@/api/backend'
+import {
+  createRoom,
+  editRoom,
+  getRoomsByFloorId,
+  getFloorById,
+  deleteRoom,
+  IconType,
+} from '@/api/backend'
 
 // Define emitted events
 const emit = defineEmits(['save-cells', 'back'])
@@ -706,6 +873,13 @@ const cancelIconAssignment = () => {
 const toggleCellIcon = (cell) => {
   if (!iconAssignmentMode.value || selectedIconType.value == null) return
 
+  // Validate: only allow icons on filled cells
+  const isFilled = isCellFilled(cell)
+  if (!isFilled) {
+    showMessage('Icons can only be placed on filled cells', 'error')
+    return
+  }
+
   const cellKey = `${cell.x}-${cell.y}`
   const currentIcon = cellIcons.value.get(cellKey)
 
@@ -714,11 +888,14 @@ const toggleCellIcon = (cell) => {
     const newCellIcons = new Map(cellIcons.value)
     newCellIcons.delete(cellKey)
     cellIcons.value = newCellIcons
+    showMessage(`Removed ${getIconLabel(selectedIconType.value)} icon`, 'info')
   } else {
     // Set or replace icon
     const newCellIcons = new Map(cellIcons.value)
     newCellIcons.set(cellKey, selectedIconType.value)
     cellIcons.value = newCellIcons
+    const action = currentIcon != null ? 'Replaced with' : 'Added'
+    showMessage(`${action} ${getIconLabel(selectedIconType.value)} icon`, 'success')
   }
 }
 
@@ -989,10 +1166,48 @@ const handleResize = () => {
   }
 }
 
+// Keyboard shortcuts handler
+const handleKeyDown = (e) => {
+  // Escape key: exit current mode
+  if (e.key === 'Escape') {
+    if (iconAssignmentMode.value) {
+      cancelIconAssignment()
+      showMessage('Icon placement cancelled', 'info')
+    } else if (roomAssignmentMode.value) {
+      cancelRoomAssignment()
+      showMessage('Room assignment cancelled', 'info')
+    } else if (selectedArea.value.size > 0) {
+      cancelSelection()
+      showMessage('Selection cleared', 'info')
+    }
+  }
+
+  // Delete/Backspace: clear selected area
+  if (
+    (e.key === 'Delete' || e.key === 'Backspace') &&
+    selectedArea.value.size > 0 &&
+    !iconAssignmentMode.value &&
+    !roomAssignmentMode.value
+  ) {
+    clearSelectedArea()
+  }
+
+  // Enter: fill selected area
+  if (
+    e.key === 'Enter' &&
+    selectedArea.value.size > 0 &&
+    !iconAssignmentMode.value &&
+    !roomAssignmentMode.value
+  ) {
+    fillSelectedArea()
+  }
+}
+
 onMounted(() => {
   window.addEventListener('resize', handleResize)
   window.addEventListener('mouseup', handleMouseUp)
   window.addEventListener('mousemove', handleGlobalMouseMove)
+  window.addEventListener('keydown', handleKeyDown)
   // Fetch latest cells for this floor
   loadInitialCells()
 })
@@ -1018,6 +1233,7 @@ onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   window.removeEventListener('mouseup', handleMouseUp)
   window.removeEventListener('mousemove', handleGlobalMouseMove)
+  window.removeEventListener('keydown', handleKeyDown)
 })
 
 // Compute device type
@@ -1028,6 +1244,29 @@ const deviceType = computed(() => {
   if (windowWidth.value < 640) return 'mobile'
   if (windowWidth.value < 1024) return 'tablet'
   return 'desktop'
+})
+
+// Current edit mode indicator
+const currentEditMode = computed(() => {
+  if (iconAssignmentMode.value) return 'icon'
+  if (roomAssignmentMode.value) return 'room'
+  if (selectedArea.value.size > 0) return 'selection'
+  return 'default'
+})
+
+const editModeLabel = computed(() => {
+  switch (currentEditMode.value) {
+    case 'icon':
+      return `Placing: ${getIconLabel(selectedIconType.value)}`
+    case 'room': {
+      const room = rooms.value.find((r) => r.id === activeRoomId.value)
+      return `Assigning: ${room?.name || 'Room'}`
+    }
+    case 'selection':
+      return `${selectedArea.value.size} cells selected`
+    default:
+      return ''
+  }
 })
 
 // Computed properties
@@ -1343,6 +1582,26 @@ const getCellBorderStyle = (cell) => {
 const getCellClass = (cell) => {
   const classes = ['grid-cell']
   const cellRoom = getCellRoom(cell)
+  const hasIcon = getCellIcon(cell) !== null
+
+  // Icon assignment mode
+  if (iconAssignmentMode.value) {
+    if (hasIcon) {
+      classes.push('grid-cell-has-icon')
+    }
+    if (cell.isFilled) {
+      classes.push('grid-cell-icon-target')
+      if (cellRoom) {
+        classes.push('grid-cell-has-room')
+      } else {
+        classes.push('grid-cell-filled')
+      }
+    } else {
+      classes.push('grid-cell-empty')
+      classes.push('grid-cell-icon-disabled')
+    }
+    return classes
+  }
 
   // Room assignment mode takes priority for visual feedback
   if (roomAssignmentMode.value) {
@@ -1386,6 +1645,11 @@ const getCellClass = (cell) => {
     } else {
       classes.push('grid-cell-empty')
     }
+  }
+
+  // Add icon indicator class
+  if (hasIcon) {
+    classes.push('grid-cell-has-icon')
   }
 
   return classes
@@ -1521,6 +1785,30 @@ const handleMouseUp = () => {
 
 const handleMouseLeave = () => {}
 
+// Handle right-click on cell (context menu)
+const handleCellRightClick = (cell) => {
+  const cellKey = `${cell.x}-${cell.y}`
+
+  // If cell has an icon, clear it
+  if (cellIcons.value.has(cellKey)) {
+    clearCellIcon(cellKey)
+    showMessage('Icon removed from cell', 'info')
+    return
+  }
+
+  // If cell is filled, option to unfill it
+  const filled = isCellFilled(cell)
+  if (filled) {
+    const idx = filledCellsData.value.findIndex((c) => c.x === cell.x && c.y === cell.y)
+    if (idx !== -1) {
+      // Clear any room assignment too
+      cellsWithRooms.value.delete(cellKey)
+      filledCellsData.value.splice(idx, 1)
+      showMessage('Cell cleared', 'info')
+    }
+  }
+}
+
 const fillSelectedArea = () => {
   if (selectedArea.value.size === 0) return
 
@@ -1543,6 +1831,9 @@ const clearSelectedArea = () => {
   if (selectedArea.value.size === 0) return
 
   let removedCount = 0
+  let iconsRemoved = 0
+  let roomsRemoved = 0
+
   selectedArea.value.forEach((cellKey) => {
     const [x, y] = cellKey.split('-').map(Number)
     const index = filledCellsData.value.findIndex((c) => c.x === x && c.y === y)
@@ -1551,9 +1842,22 @@ const clearSelectedArea = () => {
       filledCellsData.value.splice(index, 1)
       removedCount++
     }
+
+    // Also remove icons and room assignments when clearing cells
+    if (cellIcons.value.has(cellKey)) {
+      cellIcons.value.delete(cellKey)
+      iconsRemoved++
+    }
+    if (cellsWithRooms.value.has(cellKey)) {
+      cellsWithRooms.value.delete(cellKey)
+      roomsRemoved++
+    }
   })
 
-  showMessage(`Cleared ${removedCount} cells in selected area`, 'success')
+  let message = `Cleared ${removedCount} cells`
+  if (iconsRemoved > 0) message += `, ${iconsRemoved} icons`
+  if (roomsRemoved > 0) message += `, ${roomsRemoved} room assignments`
+  showMessage(message, 'success')
   cancelSelection()
 }
 
@@ -1611,8 +1915,41 @@ const clearAll = () => {
     showMessage('No cells to clear', 'info')
     return
   }
+
+  const cellCount = filledCellsData.value.length
+  const iconCount = cellIcons.value.size
+  const roomAssignCount = cellsWithRooms.value.size
+
   filledCellsData.value = []
-  showMessage('All cells cleared!', 'success')
+  cellIcons.value = new Map()
+  cellsWithRooms.value = new Map()
+
+  let message = `Cleared ${cellCount} cells`
+  if (iconCount > 0) message += `, ${iconCount} icons`
+  if (roomAssignCount > 0) message += `, ${roomAssignCount} room assignments`
+  showMessage(message, 'success')
+}
+
+// Clear all icons
+const clearAllIcons = () => {
+  if (cellIcons.value.size === 0) {
+    showMessage('No icons to clear', 'info')
+    return
+  }
+  const count = cellIcons.value.size
+  cellIcons.value = new Map()
+  showMessage(`Cleared ${count} icons`, 'success')
+}
+
+// Clear icon from specific cell
+const clearCellIcon = (cellKey) => {
+  if (cellIcons.value.has(cellKey)) {
+    const newCellIcons = new Map(cellIcons.value)
+    newCellIcons.delete(cellKey)
+    cellIcons.value = newCellIcons
+    return true
+  }
+  return false
 }
 
 const zoomIn = () => {
@@ -1803,44 +2140,60 @@ const goBack = () => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  background-color: #374151;
-  padding: 1rem;
-  border-radius: 0.5rem;
+  background: linear-gradient(145deg, #1f2937 0%, #374151 100%);
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
+  border: 1px solid #4b5563;
 }
 
-.toolbar-group {
+.toolbar-left,
+.toolbar-right {
   display: flex;
   align-items: center;
   gap: 1rem;
   flex-wrap: wrap;
 }
 
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.toolbar-group.quick-actions {
+  gap: 0.5rem;
+}
+
 .zoom-label {
   color: #d1d5db;
   font-weight: 500;
   white-space: nowrap;
+  font-size: 0.85rem;
 }
 
 .zoom-controls {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.25rem;
   background-color: #1f2937;
   padding: 0.25rem;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
+  border: 1px solid #4b5563;
 }
 
 .zoom-button {
-  padding: 0.25rem 0.5rem;
+  padding: 0.35rem 0.6rem;
   color: white;
   background-color: #4b5563;
   border: none;
-  border-radius: 0.25rem;
+  border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.2s;
   font-weight: 600;
+  font-size: 1rem;
 }
 
 .zoom-button:hover:not(:disabled) {
@@ -1857,6 +2210,104 @@ const goBack = () => {
   font-weight: 600;
   min-width: 50px;
   text-align: center;
+  font-size: 0.85rem;
+}
+
+/* Edit Mode Indicator */
+.edit-mode-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  padding: 0.4rem 0.75rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.mode-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.mode-dot.icon {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+}
+
+.mode-dot.room {
+  background-color: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.mode-dot.selection {
+  background-color: #8b5cf6;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.6);
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.9);
+  }
+}
+
+.mode-text {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+/* Action buttons in toolbar */
+.action-button {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.action-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-button.fill-all {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.action-button.fill-all:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.action-button.clear-all {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.action-button.clear-all:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.4);
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }
 
 /* Selection Control Panel */
@@ -1875,19 +2326,40 @@ const goBack = () => {
 
 .selection-info {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  gap: 1rem;
   color: white;
 }
 
-.selection-text {
-  font-size: 1rem;
-  font-weight: 500;
+.selection-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
 }
 
-.selection-text strong {
+.selection-badge svg {
+  width: 20px;
+  height: 20px;
+}
+
+.selection-count {
+  font-size: 1.25rem;
   font-weight: 700;
-  font-size: 1.1rem;
+}
+
+.selection-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.selection-text {
+  font-size: 0.95rem;
+  font-weight: 600;
 }
 
 .selection-hint {
@@ -1899,6 +2371,7 @@ const goBack = () => {
 .selection-actions {
   display: flex;
   gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .action-btn {
@@ -1913,6 +2386,16 @@ const goBack = () => {
   align-items: center;
   gap: 0.5rem;
   white-space: nowrap;
+}
+
+.action-btn .kbd-hint {
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  background-color: rgba(0, 0, 0, 0.3);
+  border-radius: 0.25rem;
+  opacity: 0.8;
+  margin-left: 0.25rem;
 }
 
 .fill-btn {
@@ -2261,6 +2744,69 @@ const goBack = () => {
   border: 2px dashed rgba(255, 255, 255, 0.5);
   border-radius: inherit;
   pointer-events: none;
+}
+
+/* Icon assignment mode styles */
+.grid-cell-icon-target {
+  cursor: crosshair !important;
+  position: relative;
+}
+
+.grid-cell-icon-target::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border: 2px dashed rgba(168, 85, 247, 0.7);
+  border-radius: 4px;
+  pointer-events: none;
+  animation: icon-target-pulse 1.5s ease-in-out infinite;
+}
+
+.grid-cell-icon-target:hover {
+  background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%) !important;
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.grid-cell-icon-disabled {
+  cursor: not-allowed !important;
+  opacity: 0.4;
+  filter: grayscale(0.5);
+}
+
+.grid-cell-icon-disabled:hover {
+  transform: none !important;
+}
+
+@keyframes icon-target-pulse {
+  0%,
+  100% {
+    border-color: rgba(168, 85, 247, 0.5);
+  }
+  50% {
+    border-color: rgba(168, 85, 247, 1);
+  }
+}
+
+/* Cell icon display */
+.cell-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 60%;
+  height: 60%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.cell-icon svg {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
 .cell-text {
@@ -3434,11 +3980,146 @@ const goBack = () => {
   justify-content: space-between;
   align-items: center;
   gap: 1rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-  border: 2px solid #3b82f6;
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+  border: 2px solid rgba(167, 139, 250, 0.5);
   border-radius: 0.75rem;
   padding: 1rem 1.5rem;
   margin-bottom: 1rem;
+  box-shadow: 0 8px 24px rgba(139, 92, 246, 0.3);
+}
+
+.assignment-info {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.assignment-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(255, 255, 255, 0.2);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+}
+
+.assignment-icon :deep(svg) {
+  width: 100%;
+  height: 100%;
+  color: white;
+}
+
+.assignment-text-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.assignment-text {
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.assignment-text strong {
+  font-weight: 700;
+}
+
+.assignment-hint {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.8rem;
+}
+
+.assignment-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.done-btn {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+.done-btn:hover {
+  background-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.icon-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.clear-icons-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 0.5rem;
+  color: #f87171;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.clear-icons-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.clear-icons-btn:hover {
+  background-color: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.stat-number {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #60a5fa;
+}
+
+.stat-label {
+  font-size: 0.75rem;
+  color: #94a3b8;
+}
+
+.icon-count-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(16, 185, 129, 0.4);
+}
+
+.icon-btn {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #1f2937;
+  border: 2px solid #374151;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
 .icon-summary {
@@ -3448,12 +4129,23 @@ const goBack = () => {
   border: 1px solid #374151;
 }
 
+.summary-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
 .summary-title {
   font-size: 0.8rem;
   font-weight: 600;
   color: #94a3b8;
-  margin-bottom: 0.5rem;
-  display: block;
+}
+
+.summary-total {
+  font-size: 0.75rem;
+  color: #60a5fa;
+  font-weight: 600;
 }
 
 .icon-tags {
@@ -3462,7 +4154,7 @@ const goBack = () => {
   gap: 0.5rem;
 }
 
-.icon-tag {
+.icon-tag-item {
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -3473,7 +4165,7 @@ const goBack = () => {
   color: #e2e8f0;
 }
 
-.tag-icon {
+.icon-tag-item .tag-icon {
   width: 14px;
   height: 14px;
   display: flex;
@@ -3481,10 +4173,54 @@ const goBack = () => {
   justify-content: center;
 }
 
-.tag-icon :deep(svg) {
+.icon-tag-item .tag-icon :deep(svg) {
   width: 100%;
   height: 100%;
   color: #60a5fa;
+}
+
+.icon-tag-item .tag-label {
+  font-weight: 500;
+  color: #e2e8f0;
+}
+
+.icon-tag-item .tag-count {
+  background-color: rgba(96, 165, 250, 0.2);
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #60a5fa;
+}
+
+.icon-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.icon-empty-state svg {
+  width: 48px;
+  height: 48px;
+  color: #4b5563;
+  margin-bottom: 0.75rem;
+}
+
+.icon-empty-state p {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.icon-empty-state span {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin-top: 0.25rem;
 }
 
 /* Action Message */
