@@ -1544,6 +1544,25 @@ const isCellAdjacentToActiveRoom = (x, y) => {
   )
 }
 
+// Helper function to darken a hex color for borders
+const darkenColor = (hex, percent) => {
+  // Remove # if present
+  hex = hex.replace(/^#/, '')
+  
+  // Parse hex to RGB
+  let r = parseInt(hex.substring(0, 2), 16)
+  let g = parseInt(hex.substring(2, 4), 16)
+  let b = parseInt(hex.substring(4, 6), 16)
+  
+  // Darken
+  r = Math.max(0, Math.floor(r * (1 - percent / 100)))
+  g = Math.max(0, Math.floor(g * (1 - percent / 100)))
+  b = Math.max(0, Math.floor(b * (1 - percent / 100)))
+  
+  // Convert back to hex
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+}
+
 const getCellBorderStyle = (cell) => {
   const cellRoom = getCellRoom(cell)
 
@@ -1567,12 +1586,14 @@ const getCellBorderStyle = (cell) => {
   const hasLeft = cellsWithRooms.value.get(`${x - 1}-${y}`) === roomId
   const hasRight = cellsWithRooms.value.get(`${x + 1}-${y}`) === roomId
 
-  const borderColor = cellRoom.color
+  // Create a darker border color for better visibility between rooms
+  const darkerBorderColor = darkenColor(cellRoom.color, 35)
   const borderWidth = '3px'
 
-  // Use same color as background for internal borders (makes them invisible)
-  const internalBorder = `${borderWidth} solid ${cellRoom.color}`
-  const externalBorder = `${borderWidth} solid ${borderColor}`
+  // Internal borders are transparent to blend cells of same room
+  // External borders use darker color for clear room separation
+  const internalBorder = `${borderWidth} solid transparent`
+  const externalBorder = `${borderWidth} solid ${darkerBorderColor}`
 
   // Calculate border radius for corners
   const cornerRadius = '6px'
@@ -1591,6 +1612,8 @@ const getCellBorderStyle = (cell) => {
     borderRight: hasRight ? internalBorder : externalBorder,
     borderRadius: `${topLeft} ${topRight} ${bottomRight} ${bottomLeft}`,
     backgroundColor: cellRoom.color,
+    backgroundImage: 'linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%, rgba(0,0,0,0.15) 100%)',
+    boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.2), inset 0 -1px 2px rgba(0,0,0,0.2)',
     margin: '0',
     padding: '0',
     boxSizing: 'border-box',
@@ -2734,16 +2757,30 @@ const goBack = () => {
   }
 }
 
-/* Room-assigned cell styles - Clean and Natural */
+/* Room-assigned cell styles - Clean and Natural with shading */
 .grid-cell-has-room {
-  color: rgba(255, 255, 255, 0.9);
+  color: rgba(255, 255, 255, 0.95);
   font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.grid-cell-has-room::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.08) 0%, transparent 40%, rgba(0,0,0,0.12) 100%);
+  pointer-events: none;
+  border-radius: inherit;
 }
 
 .grid-cell-has-room:hover {
-  filter: brightness(1.15);
+  filter: brightness(1.12);
   z-index: 10;
+}
+
+.grid-cell-has-room:hover::after {
+  background: linear-gradient(180deg, rgba(255,255,255,0.15) 0%, transparent 50%, rgba(0,0,0,0.08) 100%);
 }
 
 /* Room assignment mode cell states */
