@@ -1,68 +1,126 @@
-# **Map making Tool --- Frontend**
+# **Map Making Tool — Frontend**
 
-This project is a full-stack web application designed to create, manage, and visualize maps, their layers, and individual cells.
-It includes a backend API for data management and a frontend interface for interacting with maps.
+A web application for creating, managing, and visualizing interactive floor maps. Design building layouts, define rooms, add icons, and navigate through multi-floor structures with ease.
 
 **Link to the Backend:** https://github.com/Gabriel2002Can/Backend-map-making
 
-# **Overview**:
+---
 
-The application allows users to:
+## **Getting Started**
 
-- Create and list maps
+When you first open the application, you'll be greeted by the **Map Management System** — your central hub for all map-related activities.
 
-- Add and manage layers within each map
+---
 
-- Automatically generate cells for each layer upon creation
+## **Pages & Features**
 
-- Visualize maps and layers through an interactive frontend
+### 🗺️ **Map Management (Home Page)**
 
-- **Future functionality will include the ability to add pins (markers) to the map that display text, images, or links when clicked.**
+This is the main dashboard where you can see all your maps at a glance.
 
-# **Architecture**
+**What you can do here:**
 
-The project is divided into two main parts:
+- **View all maps** — See a list of all maps you've created, along with how many floors each one has
+- **Create a new map** — Click the "+ New Map" button to start building a new map from scratch
+- **Edit map names** — Rename any map by clicking the edit (✎) button
+- **Delete maps** — Remove maps you no longer need with the delete (🗑) button
+- **Access floors** — Each map card shows its floors, allowing you to quickly jump into any floor
 
-**Backend**
+**From each map card, you can:**
 
-- Provides a REST API for managing maps, layers, and cells.
+- Click "View" to see the map's floor overview
+- Add new floors using the "+ Floor" button
+- Edit or delete individual floors
 
-- Handles automatic cell generation whenever a new layer is created.
+---
 
-- Connects to a database that stores all map, layer, and cell data.
+### 🏢 **Map Overview**
 
-Typical endpoints include:
+When you click "View" on a map, you'll see the **Map Overview** page.
 
-- GET /maps → Returns all maps
+**What you can do here:**
 
-- POST /maps → Creates a new map
+- **See all floors** — View a list of all floors belonging to this map, sorted by floor number
+- **Navigate to floors** — Click on any floor to view its detailed layout
+- **Go back** — Return to the main Map Management page using the "← Back" button
 
-- GET /maps/{id}/layers → Returns all layers of a specific map
+---
 
-- POST /layers → Creates a new layer (and its cells)
+### 🛠️ **Create New Floor**
 
-- GET /layers/{id} → Returns a layer with all its cells
+When you click "+ Floor" on a map, you'll be taken to the **Floor Creation** form.
 
-**Frontend**
+**What you need to provide:**
 
-- Allows users to visualize maps and layers in a user-friendly interface.
+- **Floor Name** — Give your floor a descriptive name (e.g., "Ground Floor", "Basement", "Rooftop")
+- **Floor Number** — Assign a number to identify the floor's position in the building
+- **Dimensions** — Set the width and height of your floor grid (1-50 cells each)
 
-- Supports map creation directly from the UI.
+**Helpful features:**
 
-Future updates will include:
+- **Live preview** — See a summary of your floor settings before creating it
+- **Cell count** — The form shows how many total cells your floor will have
 
-- Layer editing tools
+---
 
-- Pin placement and customization
+### ✏️ **Floor Editor**
 
-- Interactive map navigation
+The **Floor Editor** is where the magic happens — this is your canvas for designing floor layouts.
 
-# **Technologies Used**
+**Main features:**
 
-**Backend: .NET (C#)**
+- **Interactive grid** — Click and drag to select cells on your floor
+- **Zoom controls** — Zoom in and out to work with large or small areas
+- **Fill/Clear all** — Quickly fill the entire floor or clear everything
 
-**Frontend: Vue**
+**Cell editing options:**
 
-**Database: Azure SQL**
+- **Fill cells** — Mark cells as filled (solid/walkable areas)
+- **Assign rooms** — Group cells together and assign them to named rooms with custom colors
+- **Add icons** — Place icons on cells to indicate features like doors, stairs, elevators, etc.
 
-**API: RESTful architecture**
+**Room management:**
+
+- Create new rooms with custom names and colors
+- Assign selected cells to existing rooms
+- Visualize different areas of your floor with color coding
+
+**Saving your work:**
+
+- Changes are saved when you click the save button
+- The editor keeps track of filled cells, room assignments, and icons
+
+---
+
+### 👁️ **Floor View**
+
+When you click on a floor from the Map Overview, you'll see the **Floor View** page — a read-only visualization of your floor.
+
+**What you can see:**
+
+- **Floor details** — Name, floor number, and dimensions displayed in the header
+- **Room count** — See how many rooms are defined on this floor
+- **Interactive grid** — View the complete floor layout with all cells, rooms, and icons
+- **Room tooltips** — Hover over cells to see which room they belong to
+
+**Navigation features:**
+
+- **Zoom controls** — Zoom in/out, reset zoom, or fit the entire floor to your screen
+- **Back button** — Return to the Map Overview
+
+---
+
+## **Typical Workflow**
+
+1. **Create a map** — Start by creating a new map for your building or project
+2. **Add floors** — Create floors for each level of your building
+3. **Design layouts** — Use the Floor Editor to draw walls, define rooms, and add icons
+4. **View your work** — Use the Floor View to see the final result and navigate your maps
+
+---
+
+## **Future Features**
+
+- Pin placement and customization (markers with text, images, or links)
+- Enhanced interactive map navigation
+- Additional icon types and customization options
