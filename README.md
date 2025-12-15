@@ -46,7 +46,7 @@ When you click "View" on a map, you'll see the **Map Overview** page.
 
 ---
 
-### 🛠️ **Create New Floor**
+### **Create New Floor**
 
 When you click "+ Floor" on a map, you'll be taken to the **Floor Creation** form.
 
