@@ -14,7 +14,7 @@ When you first open the application, you'll be greeted by the **Map Management S
 
 ## **Pages & Features**
 
-### 🗺️ **Map Management (Home Page)**
+### **Map Management (Home Page)**
 
 This is the main dashboard where you can see all your maps at a glance.
 
@@ -34,7 +34,7 @@ This is the main dashboard where you can see all your maps at a glance.
 
 ---
 
-### 🏢 **Map Overview**
+### **Map Overview**
 
 When you click "View" on a map, you'll see the **Map Overview** page.
 
@@ -63,7 +63,7 @@ When you click "+ Floor" on a map, you'll be taken to the **Floor Creation** for
 
 ---
 
-### ✏️ **Floor Editor**
+### **Floor Editor**
 
 The **Floor Editor** is where the magic happens — this is your canvas for designing floor layouts.
 
@@ -92,7 +92,7 @@ The **Floor Editor** is where the magic happens — this is your canvas for desi
 
 ---
 
-### 👁️ **Floor View**
+### **Floor View**
 
 When you click on a floor from the Map Overview, you'll see the **Floor View** page — a read-only visualization of your floor.
 
@@ -124,3 +124,4 @@ When you click on a floor from the Map Overview, you'll see the **Floor View** p
 - Pin placement and customization (markers with text, images, or links)
 - Enhanced interactive map navigation
 - Additional icon types and customization options
+- Users and Roles
