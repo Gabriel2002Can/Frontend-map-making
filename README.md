@@ -32,6 +32,8 @@ This is the main dashboard where you can see all your maps at a glance.
 - Add new floors using the "+ Floor" button
 - Edit or delete individual floors
 
+<img width="1378" height="926" alt="main-dashboard" src="https://github.com/user-attachments/assets/2a91ec6f-fa53-422e-b1ce-bd416d9e8fbd" />
+
 ---
 
 ### **Map Overview**
@@ -43,6 +45,8 @@ When you click "View" on a map, you'll see the **Map Overview** page.
 - **See all floors** — View a list of all floors belonging to this map, sorted by floor number
 - **Navigate to floors** — Click on any floor to view its detailed layout
 - **Go back** — Return to the main Map Management page using the "← Back" button
+
+<img width="242" height="296" alt="floors-overview" src="https://github.com/user-attachments/assets/26c0ee1f-94a4-4292-bab3-95587161c49b" />
 
 ---
 
@@ -60,6 +64,8 @@ When you click "+ Floor" on a map, you'll be taken to the **Floor Creation** for
 
 - **Live preview** — See a summary of your floor settings before creating it
 - **Cell count** — The form shows how many total cells your floor will have
+
+<img width="485" height="767" alt="create-floor" src="https://github.com/user-attachments/assets/2c7e1d50-1a72-476f-b218-7368b4120035" />
 
 ---
 
@@ -90,6 +96,8 @@ The **Floor Editor** is where the magic happens — this is your canvas for desi
 - Changes are saved when you click the save button
 - The editor keeps track of filled cells, room assignments, and icons
 
+<img width="587" height="842" alt="edit-cells" src="https://github.com/user-attachments/assets/78ca43cc-dc07-4f75-b850-17c29149c50a" />
+
 ---
 
 ### **Floor View**
@@ -107,6 +115,8 @@ When you click on a floor from the Map Overview, you'll see the **Floor View** p
 
 - **Zoom controls** — Zoom in/out, reset zoom, or fit the entire floor to your screen
 - **Back button** — Return to the Map Overview
+
+<img width="1851" height="957" alt="show-floor" src="https://github.com/user-attachments/assets/e8ef10fd-3164-4fc2-9609-9d12eb39ec27" />
 
 ---
 
